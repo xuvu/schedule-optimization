@@ -6,7 +6,6 @@ import numpy as np
 year_ = 2023
 month_ = 1
 nurse_num = 10
-role = [0, 1]  # 1 is programmer and 0 is service
 
 
 def amount_of_days_in_month(year, month):
@@ -43,10 +42,10 @@ def main():
 
     num_nurses = nurse_num
     num_shifts = 3
-    num_days = amount_of_days_in_month(year_, month_)
+    total_working_days = amount_of_days_in_month(year_, month_)
     all_nurses = range(num_nurses)
     all_shifts = range(num_shifts)
-    all_days = range(num_days)
+    all_days = range(total_working_days)
 
     # consider factor
     # 1. position
@@ -54,16 +53,29 @@ def main():
     # 3. normal day ex. for same person shouldn't (5 normal days)
     # 4. time period ex. same person shouldn't have consecutive period like having morning for all 31 days
 
-    # shift_requests[0][0][0] means first nurse, first day, first shift
-    # shift_requests[1][2][1] would mean that the second nurse wants to work on the third day of the week on the second shift of the day.
+    # shift_requests[0][0][0] means first nurse, first day, first shift shift_requests[1][2][1] would mean that the
+    # second nurse wants to work on the third day of the week on the second shift of the day.
 
-    # this variable should be generate automatically then can be modified later on
+    # this variable should be generated automatically then can be modified later on
     shift_requests = create_list(nurse_num, amount_of_days_in_month(year_, month_))  # <-- demo
     # Creates the model.
     model = cp_model.CpModel()
 
     # Creates shift variables.
     # shifts[(n, d, s)]: nurse 'n' works shift 's' on day 'd'.
+
+    working_days = []
+    holidays = []
+
+    for d in all_days:
+        if not is_holiday(d, weekend_days_in_month(year_, month_)):
+            working_days.append(d)
+        else:
+            holidays.append(d)
+
+    total_working_days = len(working_days)
+    total_holidays = len(holidays)
+
     shifts = {}
     for n in all_nurses:
         for d in all_days:
@@ -85,32 +97,33 @@ def main():
     # min_shifts_per_nurse shifts. If this is not possible, because the total
     # number of shifts is not divisible by the number of nurses, some nurses will
     # be assigned one more shift.
+    min_shifts_per_nurse = (num_shifts * total_working_days) // num_nurses
+    if num_shifts * total_working_days % num_nurses == 0:
+        max_shifts_per_nurse = min_shifts_per_nurse
+    else:
+        max_shifts_per_nurse = min_shifts_per_nurse + 1
 
-    min_working_days_per_nurse = 5 // num_nurses
-    min_holidays_per_nurse = 2 // num_nurses
-    if 5 % num_nurses != 0:
-        min_working_days_per_nurse += 1
-    if 2 % num_nurses != 0:
-        min_holidays_per_nurse += 1
-
-    max_working_days_per_nurse = min_working_days_per_nurse
-    max_holidays_per_nurse = min_holidays_per_nurse
+    min_shifts_per_nurse_h = (num_shifts * total_holidays) // num_nurses
+    if num_shifts * total_holidays % num_nurses == 0:
+        max_shifts_per_nurse_h = min_shifts_per_nurse_h
+    else:
+        max_shifts_per_nurse_h = min_shifts_per_nurse_h + 1
 
     for n in all_nurses:
-        working_days_per_nurse = 0
-        holidays_per_nurse = 0
-        for d in all_days:
-            if is_holiday(d, weekend_days_in_month(year_, month_)):
-                for s in all_shifts:
-                    holidays_per_nurse += shifts[(n, d, s)]
-            else:
-                for s in all_shifts:
-                    working_days_per_nurse += shifts[(n, d, s)]
+        num_shifts_worked = 0
+        num_shifts_worked_h = 0
 
-        model.Add(min_working_days_per_nurse <= working_days_per_nurse)
-        model.Add(working_days_per_nurse <= max_working_days_per_nurse)
-        model.Add(min_holidays_per_nurse <= holidays_per_nurse)
-        model.Add(holidays_per_nurse <= max_holidays_per_nurse)
+        for d in working_days:
+            for s in all_shifts:
+                num_shifts_worked += shifts[(n, d, s)]
+        model.Add(min_shifts_per_nurse <= num_shifts_worked)
+        model.Add(num_shifts_worked <= max_shifts_per_nurse)
+
+        for d in holidays:
+            for s in all_shifts:
+                num_shifts_worked_h += shifts[(n, d, s)]
+        model.Add(min_shifts_per_nurse_h <= num_shifts_worked_h)
+        model.Add(num_shifts_worked_h <= max_shifts_per_nurse_h)
 
     # pylint: disable=g-complex-comprehension
     model.Maximize(
@@ -129,15 +142,13 @@ def main():
                 for s in all_shifts:
                     if solver.Value(shifts[(n, d, s)]) == 1:
                         if shift_requests[n][d][s] == 1:
-                            print('Nurse', n, 'works shift', s, '(requested).',
-                                  is_holiday(d, weekend_days_in_month(year_, month_)))
+                            print('Nurse', n, 'works shift', s, '(requested).')
                         else:
                             print('Nurse', n, 'works shift', s,
-                                  '(not requested).', is_holiday(d, weekend_days_in_month(year_, month_)))
+                                  '(not requested).')
             print()
         print(f'Number of shift requests met = {solver.ObjectiveValue()}',
-              f'(out of {num_nurses * (min_working_days_per_nurse + min_holidays_per_nurse)})')
-
+              f'(out of {num_nurses * min_shifts_per_nurse})')
     else:
         print('No optimal solution found !')
 
