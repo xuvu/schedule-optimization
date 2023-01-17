@@ -34,6 +34,18 @@ def is_holiday(d, list_of_holiday):
         return False
 
 
+# Define the types of nurses
+types = ["Type1", "Type2"]
+all_types = range(len(types))
+
+roles = ["Type1", "Type1", "Type2", "Type1", "Type2", "Type1", "Type2", "Type1", "Type2", "Type2"]
+
+
+# Define the type of nurse for each nurse
+def type_of_nurse(n):
+    return types.index(roles[n])
+
+
 def main():
     # This program tries to find an optimal assignment of nurses to shifts
     # (3 shifts per day, for 7 days), subject to some constraints (see below).
@@ -93,6 +105,13 @@ def main():
             shifts_per_day = sum(shifts[(n, d, s)] for s in all_shifts)
             model.Add(shifts_per_day <= 2)
 
+    # Each day has at least one different types of nurses.
+    for d in all_days:
+        for type_ in all_types:
+            number_of_nurses_of_type = sum(
+                shifts[(n, d, s)] for n in all_nurses if type_of_nurse(n) == type_ for s in all_shifts)
+            model.Add(number_of_nurses_of_type >= 1)
+
     # Try to distribute the shifts evenly, so that each nurse works
     # min_shifts_per_nurse shifts. If this is not possible, because the total
     # number of shifts is not divisible by the number of nurses, some nurses will
@@ -116,12 +135,14 @@ def main():
         for d in working_days:
             for s in all_shifts:
                 num_shifts_worked += shifts[(n, d, s)]
+
         model.Add(min_shifts_per_nurse <= num_shifts_worked)
         model.Add(num_shifts_worked <= max_shifts_per_nurse)
 
         for d in holidays:
             for s in all_shifts:
                 num_shifts_worked_h += shifts[(n, d, s)]
+
         model.Add(min_shifts_per_nurse_h <= num_shifts_worked_h)
         model.Add(num_shifts_worked_h <= max_shifts_per_nurse_h)
 
@@ -142,9 +163,9 @@ def main():
                 for s in all_shifts:
                     if solver.Value(shifts[(n, d, s)]) == 1:
                         if shift_requests[n][d][s] == 1:
-                            print('Nurse', n, 'works shift', s, '(requested).')
+                            print('Nurse', type_of_nurse(n), n, 'works shift', s, '(requested).')
                         else:
-                            print('Nurse', n, 'works shift', s,
+                            print('Nurse', type_of_nurse(n), n, 'works shift', s,
                                   '(not requested).')
             print()
         print(f'Number of shift requests met = {solver.ObjectiveValue()}',
