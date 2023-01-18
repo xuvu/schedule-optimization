@@ -2,6 +2,7 @@
 from ortools.sat.python import cp_model
 import calendar
 import numpy as np
+import math
 
 year_ = 2023
 month_ = 1
@@ -54,22 +55,17 @@ def main():
 
     num_nurses = nurse_num
     num_shifts = 3
-    total_working_days = amount_of_days_in_month(year_, month_)
+    total_day = amount_of_days_in_month(year_, month_)
     all_nurses = range(num_nurses)
     all_shifts = range(num_shifts)
-    all_days = range(total_working_days)
-
-    # consider factor
-    # 1. position
-    # 2. holiday (2 holidays)
-    # 3. normal day ex. for same person shouldn't (5 normal days)
-    # 4. time period ex. same person shouldn't have consecutive period like having morning for all 31 days
+    all_days = range(total_day)
 
     # shift_requests[0][0][0] means first nurse, first day, first shift shift_requests[1][2][1] would mean that the
     # second nurse wants to work on the third day of the week on the second shift of the day.
 
     # this variable should be generated automatically then can be modified later on
     shift_requests = create_list(nurse_num, amount_of_days_in_month(year_, month_))  # <-- demo
+
     # Creates the model.
     model = cp_model.CpModel()
 
@@ -87,6 +83,14 @@ def main():
 
     total_working_days = len(working_days)
     total_holidays = len(holidays)
+
+    total_morning_shifts_working_days = total_working_days
+    total_afternoon_shifts_working_days = total_working_days
+    total_night_shifts_working_days = total_working_days
+
+    total_morning_shifts_holidays = total_holidays
+    total_afternoon_shifts_holidays = total_holidays
+    total_night_shifts_holidays = total_holidays
 
     shifts = {}
     for n in all_nurses:
@@ -179,16 +183,39 @@ def main():
     print('  - branches : %i' % solver.NumBranches())
     print('  - wall time: %f s' % solver.WallTime())
 
+    morning_shifts = {}
+    afternoon_shifts = {}
+    night_shifts = {}
+
     for n in all_nurses:
         num_shifts_worked = 0
         num_shifts_holi = 0
+
+        morning_shifts[n] = 0
+        afternoon_shifts[n] = 0
+        night_shifts[n] = 0
+
         for d in all_days:
             for s in all_shifts:
+
                 if is_holiday(d, weekend_days_in_month(year_, month_)):
                     num_shifts_holi += solver.Value(shifts[(n, d, s)])
                 else:
                     num_shifts_worked += solver.Value(shifts[(n, d, s)])
+
+                if s == 0:
+                    morning_shifts[n] += solver.Value(shifts[(n, d, s)])
+                elif s == 1:
+                    afternoon_shifts[n] += solver.Value(shifts[(n, d, s)])
+                elif s == 2:
+                    night_shifts[n] += solver.Value(shifts[(n, d, s)])
+
         print('nurse', n, ' has ', num_shifts_worked, 'normal day', num_shifts_holi, 'holiday')
+        # Print the results
+
+    for n in all_nurses:
+        print("Nurse ", n, " morning_shifts: ", solver.Value(morning_shifts[n]), " afternoon_shifts: ",
+              solver.Value(afternoon_shifts[n]), " night_shifts: ", solver.Value(night_shifts[n]))
 
 
 if __name__ == '__main__':
