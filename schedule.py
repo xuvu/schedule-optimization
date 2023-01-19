@@ -2,11 +2,6 @@
 from ortools.sat.python import cp_model
 import calendar
 import numpy as np
-import math
-
-year_ = 2023
-month_ = 1
-nurse_num = 11
 
 
 def amount_of_days_in_month(year, month):
@@ -39,7 +34,12 @@ def is_holiday(d, list_of_holiday):
 types = ["Type1", "Type2"]
 all_types = range(len(types))
 
-roles = ["Type1", "Type1", "Type2", "Type1", "Type2", "Type1", "Type2", "Type1", "Type2", "Type2","Type2"]
+roles = ["Type2", "Type2", "Type2", "Type2", "Type2", "Type2", "Type2", "Type2", "Type1", "Type1", "Type1", "Type1",
+         "Type1", "Type1", "Type1"]
+
+year_ = 2023
+month_ = 1
+nurse_num = len(roles)
 
 
 # Define the type of nurse for each nurse
@@ -84,8 +84,6 @@ def main():
     total_working_days = len(working_days)
     total_holidays = len(holidays)
 
-    # add the constraint which for each nurse should have equal shift
-
     total_morning_shifts_working_days = total_working_days
     total_afternoon_shifts_working_days = total_working_days
     total_night_shifts_working_days = total_working_days
@@ -105,16 +103,25 @@ def main():
         for s in all_shifts:
             model.AddExactlyOne(shifts[(n, d, s)] for n in all_nurses)
 
+    # For each nurse shouldn't have more than 2 shifts within 4 days
+    day_interval = 4
+    maximum_shifts = 2
     for n in all_nurses:
-        for s in all_shifts:
-            for d in range(6, total_day):
-                model.Add(sum(shifts[(n, d - 6 + i, s)] for i in range(6)) <= 2)
+        for d in range(1, total_day):  # d = 1,2,3,4,5,...,total_day, d = 1
+            if d + (day_interval - 1) < total_day:  # 1 + (4-1) < 31
+                model.Add(sum(shifts[(n, d + i, s)] for i in range(day_interval) for s in all_shifts) <= maximum_shifts)
+                # shifts[(0, 1 + 0, 0), shifts[(0, 1 + 0, 1), shifts[(0, 1 + 0, 2)
+                # shifts[(0, 1 + 1, 0), shifts[(0, 1 + 1, 1), shifts[(0, 1 + 1, 2)
+                # shifts[(0, 1 + 2, 0), shifts[(0, 1 + 2, 1), shifts[(0, 1 + 2, 2)
+                # shifts[(0, 1 + 3, 0), shifts[(0, 1 + 3, 1), shifts[(0, 1 + 3, 2)
+                # all of the shifts period the nurse can only have 2 shifts maximum
 
     # Each nurse works at most two shifts per day.
+    maximum_each_day_shifts = 2
     for n in all_nurses:
         for d in all_days:
             shifts_per_day = sum(shifts[(n, d, s)] for s in all_shifts)
-            model.Add(shifts_per_day <= 2)
+            model.Add(shifts_per_day <= maximum_each_day_shifts)
 
     # Each day has at least one different types of nurses.
     for d in all_days:
@@ -331,7 +338,8 @@ def main():
     for n in all_nurses:
         print("Nurse ", n, " morning_shifts: ", solver.Value(morning_shifts[n]), " afternoon_shifts: ",
               solver.Value(afternoon_shifts[n]), " night_shifts: ", solver.Value(night_shifts[n]))
-        print("Nurse ", n, " morning_shifts_holiday: ", solver.Value(morning_shifts_h[n]), " afternoon_shifts_holiday: ",
+        print("Nurse ", n, " morning_shifts_holiday: ", solver.Value(morning_shifts_h[n]),
+              " afternoon_shifts_holiday: ",
               solver.Value(afternoon_shifts_h[n]), " night_shifts_holiday: ", solver.Value(night_shifts_h[n]))
         print('---')
 
