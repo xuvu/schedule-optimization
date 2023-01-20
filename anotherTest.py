@@ -12,7 +12,7 @@ def main():
     num_shifts = 3
     num_days = 31
     all_nurses = range(num_nurses)
-    all_shifts = range(num_shifts)
+
     all_days = range(num_days)
     shift_requests = np.zeros((num_nurses, num_days, 3))
 
@@ -22,11 +22,15 @@ def main():
     # Creates shift variables.
     # shifts[(n, d, s)]: nurse 'n' works shift 's' on day 'd'.
     shifts = {}
+    forbidden_shifts = [0]
+    all_shifts = range(num_shifts)
+    all_shifts = set(all_shifts) - set(forbidden_shifts)
+    num_shifts = len(all_shifts)
+
     for n in all_nurses:
         for d in all_days:
             for s in all_shifts:
-                shifts[(n, d,
-                        s)] = model.NewBoolVar('shift_n%id%is%i' % (n, d, s))
+                shifts[(n, d, s)] = model.NewBoolVar('shift_n%id%is%i' % (n, d, s))
 
     # Each shift is assigned to exactly one nurse in .
     for d in all_days:
