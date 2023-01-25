@@ -50,7 +50,8 @@ all_types = range(len(types))
 # Each shift has 2 person
 
 # (MEDIUM)
-# 2 person per shift, programmer + service => good
+# 2 person per shift
+# programmer + service => programmer + programmer => service + service
 
 # (HARD)
 # (1,2) same => (1,2) different => (0,1) same => good
@@ -71,11 +72,10 @@ all_types = range(len(types))
 
 # programmer = 8, service = 6
 roles = ["Type1", "Type1", "Type1", "Type1", "Type1", "Type1", "Type1", "Type1",
-         "Type2", "Type2", "Type2", "Type2", "Type2", "Type2"]
+         "Type2", "Type2", "Type2"]
 
 year_ = 2023
 month_ = 1
-nurse_num = len(roles)
 
 
 # Define the type of nurse for each nurse
@@ -89,6 +89,7 @@ def main():
     # Each nurse can request to be assigned to specific shifts.
     # The optimal assignment maximizes the number of fulfilled shift requests
 
+    global total_min, total_max
     num_nurses = len(roles)
     all_nurses = range(num_nurses)
     all_days = get_days_in_month(year_, month_)
@@ -121,6 +122,7 @@ def main():
         for d in all_days:
             for s in all_shifts:
                 shifts[(n, d, s)] = model.NewBoolVar('shift_n%id%is%i' % (n, d, s))
+
     """
     # Each shift is assigned to exactly one nurse in.
     for d in all_days:
@@ -128,8 +130,8 @@ def main():
             model.Add(sum(shifts[(n, d, s)] for n in all_nurses) == 1)
     """
 
-    # Each shift is assigned to exactly 2 nurse in.
     num_of_nurse_per_shift = 2
+    # Each shift is assigned to exactly 2 nurse in.
     for d in all_days:
         if d not in all_weekends:
             for s in all_shifts:
@@ -159,12 +161,24 @@ def main():
             shifts_per_day = sum(shifts[(n, d, s)] for s in all_shifts)
             model.Add(shifts_per_day <= maximum_each_day_shifts)
 
-    # Each day has at least one different types of nurses.
+    # Nurse type priority
+    type_priority = [['Type1', 'Type2'], ['Type1', 'Type1'], ['Type2', 'Type2']]
+
+    # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
+
+    # Each shift ensure different type of nurses
     for d in all_days:
-        for type_ in all_types:
-            number_of_nurses_of_type = sum(
-                shifts[(n, d, s)] for n in all_nurses if type_of_nurse(n) == type_ for s in all_shifts)
-            model.Add(number_of_nurses_of_type >= 1)
+        for s in all_shifts:
+            for t1 in all_types:
+                for t2 in all_types:
+                    if t1 != t2:
+                        model.Add(sum(shifts[(n, d, s)] for n in all_nurses if type_of_nurse(n) == t1) +
+                                  sum(shifts[(n, d, s)] for n in all_nurses if type_of_nurse(n) == t2) >= 1)
+
+    # Prioritize (1,2) to be same person
+    for d in all_days:
+        for n in all_nurses:
+            model.Add(shifts[(n, d, 1)] <= shifts[(n, d, 2)])
 
     # Try to distribute the shifts evenly, so that each nurse works
     # min_shifts_per_nurse shifts. If this is not possible, because the total
@@ -270,13 +284,20 @@ def main():
         # model.Add(min_morning_shift_per_nurse <= num_shifts_morning)
         # model.Add(num_shifts_morning <= max_morning_shift_per_nurse)
 
+        # conflict between
+        # minimum type within each shift
+        # distribution constraint
+
+        # soften the constraint of working day shifts
+        slack = 0
+
         # afternoon shifts constraint
-        model.Add(min_afternoon_shift_per_nurse <= num_shifts_afternoon)
-        model.Add(num_shifts_afternoon <= max_afternoon_shift_per_nurse)
+        model.Add(min_afternoon_shift_per_nurse - slack <= num_shifts_afternoon)
+        model.Add(num_shifts_afternoon <= max_afternoon_shift_per_nurse + slack)
 
         # night shifts constraint
-        model.Add(min_night_shift_per_nurse <= num_shifts_night)
-        model.Add(num_shifts_night <= max_night_shift_per_nurse)
+        model.Add(min_night_shift_per_nurse - slack <= num_shifts_night)
+        model.Add(num_shifts_night <= max_night_shift_per_nurse + slack)
         # ---------------------------------------------------------------
 
         # Distribute holiday day shifts
@@ -297,9 +318,12 @@ def main():
         # model.Add(min_shifts_per_nurse_h <= num_shift_worked_h)
         # model.Add(num_shift_worked_h <= max_shifts_per_nurse_h)
 
+        # soften the constraint for holiday shifts
+        slack_h = 0
+
         # morning shifts constraint
-        model.Add(min_morning_shift_per_nurse_h <= num_shifts_morning_h)
-        model.Add(num_shifts_morning_h <= max_morning_shift_per_nurse_h)
+        model.Add(min_morning_shift_per_nurse_h - slack_h <= num_shifts_morning_h)
+        model.Add(num_shifts_morning_h <= max_morning_shift_per_nurse_h + slack_h)
 
         # afternoon shifts constraint
         model.Add(min_afternoon_shift_per_nurse_h <= num_shifts_afternoon_h)
@@ -309,9 +333,18 @@ def main():
         model.Add(min_night_shift_per_nurse_h <= num_shifts_night_h)
         model.Add(num_shifts_night_h <= max_night_shift_per_nurse_h)
 
+        # lower bound slack
+        min_total_slack = 2
+
+        # upper bound slack
+        max_total_slack = 0
+
+        total_min = min_shifts_per_nurse + min_shifts_per_nurse_h - min_total_slack
+        total_max = max_shifts_per_nurse + max_shifts_per_nurse_h + max_total_slack
+
         # Total shifts should be equal
-        model.Add((min_shifts_per_nurse + min_shifts_per_nurse_h) <= (num_shift_worked + num_shift_worked_h))
-        model.Add((num_shift_worked + num_shift_worked_h) <= (max_shifts_per_nurse + max_shifts_per_nurse_h))
+        model.Add(total_min <= (num_shift_worked + num_shift_worked_h))
+        model.Add((num_shift_worked + num_shift_worked_h) <= total_max)
         # ---------------------------------------------------------------
 
     # pylint: disable=g-complex-comprehension
@@ -327,8 +360,8 @@ def main():
         print('Solution:')
         for d in all_days:
             print('Day', d, d in all_weekends)
-            for n in all_nurses:
-                for s in all_shifts:
+            for s in all_shifts:
+                for n in all_nurses:
                     if solver.Value(shifts[(n, d, s)]) == 1:
                         if shift_requests[n - 1][d - 1][s - 1] == 1:
                             print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(requested).')
@@ -402,15 +435,15 @@ def main():
               solver.Value(afternoon_shifts_h[n]), " night_shifts_h: ", solver.Value(night_shifts_h[n]))
         print('---')
 
-    print('min working day', min_morning_shift_per_nurse, min_afternoon_shift_per_nurse, min_night_shift_per_nurse)
-    print('max working day', max_morning_shift_per_nurse, max_afternoon_shift_per_nurse, max_night_shift_per_nurse)
-    print('min holiday day', min_morning_shift_per_nurse_h, min_afternoon_shift_per_nurse_h,
+    print('min working shift', min_morning_shift_per_nurse, min_afternoon_shift_per_nurse, min_night_shift_per_nurse)
+    print('max working shift', max_morning_shift_per_nurse, max_afternoon_shift_per_nurse, max_night_shift_per_nurse)
+    print('min holiday shift', min_morning_shift_per_nurse_h, min_afternoon_shift_per_nurse_h,
           min_night_shift_per_nurse_h)
-    print('max holiday day', max_morning_shift_per_nurse_h, max_afternoon_shift_per_nurse_h,
+    print('max holiday shift', max_morning_shift_per_nurse_h, max_afternoon_shift_per_nurse_h,
           max_night_shift_per_nurse_h)
     print(sum_all_shifts)
-    print('sum min total day', (min_shifts_per_nurse + min_shifts_per_nurse_h))
-    print('sum max total day', (max_shifts_per_nurse + max_shifts_per_nurse_h))
+    print('sum min total shift', total_min)
+    print('sum max total shift', total_max)
 
 
 if __name__ == '__main__':

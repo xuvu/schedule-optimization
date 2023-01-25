@@ -1,64 +1,79 @@
-from ortools.constraint_solver import pywrapcp
-
-# Define the number of nurses, shifts, and days in the schedule
-num_nurses = 10
-num_shifts = 3  # morning, afternoon, night
-num_days = 31
-working_days = list(range(num_days))
-
-# Create a solver and a decision builder
-solver = pywrapcp.Solver("Nurse schedule")
-
-# Create variables to represent each shift for each nurse and each day
-shifts = [[[solver.IntVar(0, num_nurses - 1, "shift(%i,%i,%i)" % (n, s, d))
-            for d in range(num_days)]
-           for s in range(num_shifts)]
-          for n in range(num_nurses)]
-
-db = solver.Phase([shifts[n][s][d] for n in range(num_nurses) for s in range(num_shifts) for d in range(num_days)],
-                  solver.INT_VAR_SIMPLE,
-                  solver.INT_VALUE_SIMPLE)
-
-# Ensure that each nurse works the same number of shifts for each shift type
-for n in range(num_nurses):
-    for s in range(num_shifts):
-        solver.Add(solver.Sum([shifts[n][s][d] for d in range(num_days) if d not in working_days]) == int((num_days - len(working_days))/num_shifts))
-        solver.Add(solver.Sum([shifts[n][s][d] for d in working_days]) == int(len(working_days)/num_shifts))
-
-# Ensure that no morning shifts are scheduled on working days
-for n in range(num_nurses):
-    for d in range(num_days):
-        if d % 7 < 5:
-            solver.Add(shifts[n][0][d] == -1)
+#!/usr/bin/env python3
+# Copyright 2010-2022 Google LLC
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Linear optimization example."""
+# [START program]
+# [START import]
+from ortools.linear_solver import pywraplp
+# [END import]
 
 
-# Ensure that each nurse works at most two shifts within 4 days
-for n in range(num_nurses):
-    for d in range(num_days):
-        if d < num_days - 3:
-            solver.Add(solver.Sum([shifts[n][s][d + i] for i in range(4) for s in range(num_shifts)]) <= 2)
+def LinearProgrammingExample():
+    """Linear programming sample."""
+    # Instantiate a Glop solver, naming it LinearExample.
+    # [START solver]
+    solver = pywraplp.Solver.CreateSolver('GLOP')
+    if not solver:
+        return
+    # [END solver]
 
-# Set a shift request for a specific nurse
-nurse = 2
-shift = 1
-day = 15
-solver.Add(shifts[nurse][shift][day] == nurse)
+    # Create the two variables and let them take on any non-negative value.
+    # [START variables]
+    x = solver.NumVar(0, solver.infinity(), 'x')
+    y = solver.NumVar(0, solver.infinity(), 'y')
 
-# Find a solution
-solution = solver.Assignment()
-solution.Add([shifts[n][s][d] for n in range(num_nurses)
-              for s in range(num_shifts)
-              for d in range(num_days)])
-solver.NewSearch(db)
+    print('Number of variables =', solver.NumVariables())
+    # [END variables]
+
+    # [START constraints]
+    # Constraint 0: x + 2y <= 14.
+    solver.Add(x + 2 * y <= 14.0)
+
+    # Constraint 1: 3x - y >= 0.
+    solver.Add(3 * x - y >= 0.0)
+
+    # Constraint 2: x - y <= 2.
+    solver.Add(x - y <= 2.0)
+
+    print('Number of constraints =', solver.NumConstraints())
+    # [END constraints]
+
+    # [START objective]
+    # Objective function: 3x + 4y.
+    solver.Maximize(3 * x + 4 * y)
+    # [END objective]
+
+    # Solve the system.
+    # [START solve]
+    status = solver.Solve()
+    # [END solve]
+
+    # [START print_solution]
+    if status == pywraplp.Solver.OPTIMAL:
+        print('Solution:')
+        print('Objective value =', solver.Objective().Value())
+        print('x =', x.solution_value())
+        print('y =', y.solution_value())
+    else:
+        print('The problem does not have an optimal solution.')
+    # [END print_solution]
+
+    # [START advanced]
+    print('\nAdvanced usage:')
+    print('Problem solved in %f milliseconds' % solver.wall_time())
+    print('Problem solved in %d iterations' % solver.iterations())
+    # [END advanced]
 
 
-if solver.NextSolution():
-    for n in range(num_nurses):
-        print("Nurse", n)
-        for d in range(num_days):
-            print("Day", d, ":", end=" ")
-            for s in range(num_shifts):
-                if shifts[n][s][d].Value() == n:
-                    print(s, end=" ")
-            print()
-        print()
+LinearProgrammingExample()
+# [END program]
