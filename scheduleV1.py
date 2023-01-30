@@ -136,12 +136,12 @@ def main():
             for s in all_shifts:
                 model.Add(sum(shifts[(n, d, s)] for n in all_nurses) == num_of_nurse_per_shift)
 
-        # Try to distribute the shifts evenly, so that each nurse works
-        # min_shifts_per_nurse shifts. If this is not possible, because the total
-        # number of shifts is not divisible by the number of nurses, some nurses will
-        # be assigned one more shift.
+    # Try to distribute the shifts evenly, so that each nurse works
+    # min_shifts_per_nurse shifts. If this is not possible, because the total
+    # number of shifts is not divisible by the number of nurses, some nurses will
+    # be assigned one more shift.
 
-        # min-max working day
+    # min-max working day
     working_shift_per_day = ((num_shifts - len(forbidden_shifts)) * num_of_nurse_per_shift)
     min_shifts_per_nurse = (working_shift_per_day * total_working_days) // num_nurses
     if working_shift_per_day * total_working_days % num_nurses == 0:
@@ -327,7 +327,7 @@ def main():
     type_priority = [['Type1', 'Type2'], ['Type1', 'Type1'], ['Type2', 'Type2']]
 
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
-
+    '''
     # Each shift ensure different type of nurses
     for d in all_days:
         if d <= 50:
@@ -342,7 +342,7 @@ def main():
                 model.Add(shifts[(n, d, 1)] <= shifts[(n, d, 2)])  # (1,2) same
                 # model.Add(shifts[(n, d, 0)] + shifts[(n, d, 2)] <= 1)  # forbidden (0,2)
                 # model.Add(shifts[(n, d, 2)] + shifts[(n, d, 0)] <= 1)  # forbidden (2,0)
-
+    '''
     # pylint: disable=g-complex-comprehension
     model.Maximize(
         sum(shift_requests[n - 1][d - 1][s - 1] * shifts[(n, d, s)] for n in all_nurses
@@ -350,7 +350,6 @@ def main():
 
     # Creates the solver and solve.
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 10
     status = solver.Solve(model)
 
     if status == cp_model.OPTIMAL:

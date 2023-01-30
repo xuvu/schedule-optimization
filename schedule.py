@@ -116,7 +116,6 @@ def main():
     shifts = {}
     num_shifts = 3
     all_shifts = range(num_shifts)  # [1,2,3]
-    num_shifts = len(all_shifts)
 
     forbidden_shifts = [0]
 
@@ -175,13 +174,7 @@ def main():
 
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
 
-    # Each shift ensure different type of nurses
-    for d in all_days:
-        if d <= 27:
-            for s in all_shifts:
-                for t in all_types:
-                    model.AddLinearConstraint(sum(shifts[(n, d, s)] for n in all_nurses if type_of_nurse(n) == t), 0, 1)
-
+    '''
     # Prioritize shift patterns
     for d in all_days:
         for n in all_nurses:
@@ -192,14 +185,14 @@ def main():
 
             model.Add(shifts[(n, d, 0)] + shifts[(n, d, 2)] <= 1)  # forbidden (0,2)
             model.Add(shifts[(n, d, 2)] + shifts[(n, d, 0)] <= 1)  # forbidden (2,0)
-
+    '''
     # Try to distribute the shifts evenly, so that each nurse works
     # min_shifts_per_nurse shifts. If this is not possible, because the total
     # number of shifts is not divisible by the number of nurses, some nurses will
     # be assigned one more shift.
 
     # min-max working day
-    working_shift_per_day = ((num_shifts * num_of_nurse_per_shift) - len(forbidden_shifts))
+    working_shift_per_day = ((num_shifts - len(forbidden_shifts)) * num_of_nurse_per_shift)
     min_shifts_per_nurse = (working_shift_per_day * total_working_days) // num_nurses
     if working_shift_per_day * total_working_days % num_nurses == 0:
         max_shifts_per_nurse = min_shifts_per_nurse
@@ -358,9 +351,20 @@ def main():
         model.Add((num_shift_worked + num_shift_worked_h) <= total_max)
         # ---------------------------------------------------------------
 
+    # Each shift ensure different type of nurses
+    for d in all_days:
+        if d <= 27:
+            for s in all_shifts:
+                for t in all_types:
+                    type_count = 0
+                    for n in all_nurses:
+                        if type_of_nurse(n) == t:
+                            type_count += shifts[(n, d, s)]
+                    model.Add(type_count <= 1)
+
     # pylint: disable=g-complex-comprehension
     model.Maximize(
-        sum(shift_requests[n - 1][d - 1][s - 1] * shifts[(n, d, s)] for n in all_nurses
+        sum(shift_requests[n][d - 1][s] * shifts[(n, d, s)] for n in all_nurses
             for d in all_days for s in all_shifts))
 
     # Creates the solver and solve.
@@ -374,7 +378,7 @@ def main():
             for s in all_shifts:
                 for n in all_nurses:
                     if solver.Value(shifts[(n, d, s)]) == 1:
-                        if shift_requests[n - 1][d - 1][s - 1] == 1:
+                        if shift_requests[n][d - 1][s] == 1:
                             print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(requested).')
                         else:
                             print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(not requested).')
@@ -415,7 +419,6 @@ def main():
         for d in all_days:
             for s in all_shifts:
                 if d in all_weekends:
-                    sum_all_shifts += 1
                     num_shifts_holi += solver.Value(shifts[(n, d, s)])
                     if s == 0:
                         morning_shifts_h[n] += solver.Value(shifts[(n, d, s)])
@@ -424,7 +427,6 @@ def main():
                     elif s == 2:
                         night_shifts_h[n] += solver.Value(shifts[(n, d, s)])
                 else:
-                    sum_all_shifts += 1
                     num_shifts_worked += solver.Value(shifts[(n, d, s)])
                     if s == 0:
                         morning_shifts[n] += solver.Value(shifts[(n, d, s)])
@@ -436,8 +438,9 @@ def main():
         print('Type', type_of_nurse(n), 'Nurse', n, ' has ', num_shifts_worked, 'shifts normal day', num_shifts_holi,
               'shifts holiday',
               num_shifts_worked + num_shifts_holi, 'total shifts')
+        sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi
 
-        # Print the results
+    # Print the results
     for n in all_nurses:
         print("Nurse ", n, " morning_shifts: ", solver.Value(morning_shifts[n]), " afternoon_shifts: ",
               solver.Value(afternoon_shifts[n]), " night_shifts: ", solver.Value(night_shifts[n]))

@@ -1,79 +1,51 @@
-#!/usr/bin/env python3
-# Copyright 2010-2022 Google LLC
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Linear optimization example."""
-# [START program]
-# [START import]
-from ortools.linear_solver import pywraplp
-# [END import]
+from collections import Counter
 
+'''
+list1 = ['A1', 'A2', 'A3']
+list2 = ['B1', 'B2']
+counts_list1 = Counter(list1 * 10)
+counts_list2 = Counter(list2 * 10)
 
-def LinearProgrammingExample():
-    """Linear programming sample."""
-    # Instantiate a Glop solver, naming it LinearExample.
-    # [START solver]
-    solver = pywraplp.Solver.CreateSolver('GLOP')
-    if not solver:
-        return
-    # [END solver]
+# Counting the number of occurrences of all elements
+counts = counts_list1 + counts_list2
 
-    # Create the two variables and let them take on any non-negative value.
-    # [START variables]
-    x = solver.NumVar(0, solver.infinity(), 'x')
-    y = solver.NumVar(0, solver.infinity(), 'y')
+# Counting the minimum number of occurrences
+min_count = min(counts.values())
 
-    print('Number of variables =', solver.NumVariables())
-    # [END variables]
+# Create a new list of pairings where each element is paired
+# the same number of times as the minimum number of occurrences
+even_pairings = []
+for element1, count1 in counts_list1.items():
+    for element2, count2 in counts_list2.items():
+        even_pairings += [(element1, element2)] * min_count
 
-    # [START constraints]
-    # Constraint 0: x + 2y <= 14.
-    solver.Add(x + 2 * y <= 14.0)
+print(even_pairings)
 
-    # Constraint 1: 3x - y >= 0.
-    solver.Add(3 * x - y >= 0.0)
+counts = {'A1': 0, 'A2': 0, 'A3': 0, 'B1': 0, 'B2': 0}
 
-    # Constraint 2: x - y <= 2.
-    solver.Add(x - y <= 2.0)
+for pair in even_pairings:
+    for element in pair:
+        counts[element] += 1
+print(counts)
+'''
 
-    print('Number of constraints =', solver.NumConstraints())
-    # [END constraints]
+import itertools
 
-    # [START objective]
-    # Objective function: 3x + 4y.
-    solver.Maximize(3 * x + 4 * y)
-    # [END objective]
+list1 = ['A1', 'A2', 'A3']
+list2 = ['B1', 'B2']
 
-    # Solve the system.
-    # [START solve]
-    status = solver.Solve()
-    # [END solve]
+# The list includes all elements within the same set
+same_a = list(itertools.product(list1, repeat=2))
 
-    # [START print_solution]
-    if status == pywraplp.Solver.OPTIMAL:
-        print('Solution:')
-        print('Objective value =', solver.Objective().Value())
-        print('x =', x.solution_value())
-        print('y =', y.solution_value())
-    else:
-        print('The problem does not have an optimal solution.')
-    # [END print_solution]
+same_a = [(x, y) for x in list2 for y in list2 if x != y]
 
-    # [START advanced]
-    print('\nAdvanced usage:')
-    print('Problem solved in %f milliseconds' % solver.wall_time())
-    print('Problem solved in %d iterations' % solver.iterations())
-    # [END advanced]
+# The list includes all elements within the same set
+same_b = list(itertools.product(list1, repeat=2))
 
+same_b = [(x, y) for x in list1 for y in list1 if x != y]
 
-LinearProgrammingExample()
-# [END program]
+diff_pair = list(itertools.product(list1, list2))
+
+print(same_a)
+print(same_b)
+print(diff_pair)
