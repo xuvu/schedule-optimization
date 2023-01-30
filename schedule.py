@@ -1,4 +1,6 @@
 """Nurse scheduling problem with shift requests."""
+import math
+
 from ortools.sat.python import cp_model
 import calendar
 import numpy as np
@@ -36,6 +38,29 @@ def is_holiday(day, list_of_holiday):
         return True
     else:
         return False
+
+
+def get_max_diff_type():
+    total_shifts = 142
+    list1 = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']
+    list2 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
+    min_shift = math.floor(total_shifts / (len(list1) + len(list2)))
+
+    element_counts = {element: 0 for element in list1 + list2}
+    result = []
+
+    count_pair = 0
+    for k in range(math.floor(total_shifts / (len(list1)) * len(list2))):
+        for b in list2:
+            for a in list1:
+                if count_pair >= total_shifts:
+                    break
+                if b != a and element_counts[b] < min_shift and element_counts[a] < min_shift:
+                    count_pair += 1
+                    element_counts[a] += 1
+                    element_counts[b] += 1
+                    result += [(a, b)]
+    return count_pair
 
 
 # Define the types of nurses
@@ -173,6 +198,11 @@ def main():
     type_priority = [['Type1', 'Type2'], ['Type1', 'Type1'], ['Type2', 'Type2']]
 
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
+
+    # Prioritize shift patterns
+    for d in all_days:
+        for n in all_nurses:
+            model.Add(shifts[(n, d, 1)] <= shifts[(n, d, 2)])  # (1,2) same
 
     '''
     # Prioritize shift patterns
@@ -351,16 +381,31 @@ def main():
         model.Add((num_shift_worked + num_shift_worked_h) <= total_max)
         # ---------------------------------------------------------------
 
+    max_diff_pair = get_max_diff_type()
+    max_diff_count = 0
     # Each shift ensure different type of nurses
-    for d in all_days:
-        if d <= 27:
-            for s in all_shifts:
+    for d in all_weekends:
+        for s in all_shifts:
+            if max_diff_count <= max_diff_pair:
+                max_diff_count += 1
                 for t in all_types:
                     type_count = 0
                     for n in all_nurses:
                         if type_of_nurse(n) == t:
                             type_count += shifts[(n, d, s)]
                     model.Add(type_count <= 1)
+
+    for d in all_working_days:
+        for s in all_shifts:
+            if s != 0:
+                if max_diff_count <= max_diff_pair:
+                    max_diff_count += 1
+                    for t in all_types:
+                        type_count = 0
+                        for n in all_nurses:
+                            if type_of_nurse(n) == t:
+                                type_count += shifts[(n, d, s)]
+                        model.Add(type_count <= 1)
 
     # pylint: disable=g-complex-comprehension
     model.Maximize(

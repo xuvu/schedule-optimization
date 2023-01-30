@@ -31,21 +31,9 @@ print(counts)
 
 import itertools
 
-list1 = ['A1', 'A2', 'A3']
-list2 = ['B1', 'B2']
-
-# The list includes all elements within the same set
-same_a = list(itertools.product(list1, repeat=2))
-
-same_a = [(x, y) for x in list2 for y in list2 if x != y]
-
-# The list includes all elements within the same set
-same_b = list(itertools.product(list1, repeat=2))
-
-same_b = [(x, y) for x in list1 for y in list1 if x != y]
+list1 = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']
+list2 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
 
 diff_pair = list(itertools.product(list1, list2))
 
-print(same_a)
-print(same_b)
-print(diff_pair)
+print(len(diff_pair))
