@@ -1,13 +1,13 @@
-shift_per_person = 26
+roles = ["Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer",
+         "Service", "Service", "Service", "Service", "Service", "Service"]
 
-num_person_per_shift = 2
+# counts = {role: roles.count(role) for role in set(roles)}
+# print(counts)
+#
+# min_value = max(counts.values())
+# min_type = [key for key, value in counts.items() if value == min_value]
+#
+# print(counts[str(min_type[0])])
 
-A = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']
-B = ['B1', 'B2', 'B3']
-
-if len(A) == len(B):
-    violation_pair = (shift_per_person / num_person_per_shift)
-else:
-    violation_pair = (shift_per_person / num_person_per_shift) * (len(A) - len(B))
-
-print(violation_pair)
+role_count = [f"{k}{i}" for i, k in enumerate(roles, 1) if k == 'Programmer']
+print(role_count)

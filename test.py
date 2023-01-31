@@ -1,39 +1,30 @@
-from collections import Counter
+import openpyxl
 
-'''
-list1 = ['A1', 'A2', 'A3']
-list2 = ['B1', 'B2']
-counts_list1 = Counter(list1 * 10)
-counts_list2 = Counter(list2 * 10)
+# Create a new Excel workbook
+wb = openpyxl.Workbook()
 
-# Counting the number of occurrences of all elements
-counts = counts_list1 + counts_list2
+# Select the active sheet
+sheet = wb.active
 
-# Counting the minimum number of occurrences
-min_count = min(counts.values())
+# Write the data to the sheet
+# sheet['A1'] = 'Value1'
+# sheet['B1'] = 'Value2'
+# sheet['C1'] = 'Value3'
+# sheet['D1'] = 'Value4'
+# sheet['A2'] = 1
+# sheet['B2'] = 2
+# sheet['C2'] = 3
+# sheet['D2'] = 4
 
-# Create a new list of pairings where each element is paired
-# the same number of times as the minimum number of occurrences
-even_pairings = []
-for element1, count1 in counts_list1.items():
-    for element2, count2 in counts_list2.items():
-        even_pairings += [(element1, element2)] * min_count
+sheet['B1'] = 'Morning (08.00 - 16.00)'
+sheet['C1'] = 'Afternoon (16.00-24.00)'
+sheet['D1'] = 'Night (24.00-8.00)'
 
-print(even_pairings)
+# For each day
+for d in range(31):
+    cell_pos = 'A'+str(d+2)
+    sheet[cell_pos] = d+1
 
-counts = {'A1': 0, 'A2': 0, 'A3': 0, 'B1': 0, 'B2': 0}
 
-for pair in even_pairings:
-    for element in pair:
-        counts[element] += 1
-print(counts)
-'''
-
-import itertools
-
-list1 = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']
-list2 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
-
-diff_pair = list(itertools.product(list1, list2))
-
-print(len(diff_pair))
+# Save the workbook
+wb.save("sample.xlsx")

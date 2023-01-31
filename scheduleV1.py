@@ -1,8 +1,35 @@
 """Nurse scheduling problem with shift requests."""
+import math
+
 from ortools.sat.python import cp_model
 import calendar
 import numpy as np
 from datetime import date
+
+name_of_person = ['ภูวเนตร',
+                  'ราเชนทร์',
+                  'พลกฤต',
+                  'ชานนท์',
+                  'ปรมะ',
+                  'สัญญา',
+                  'วินัย',
+                  'รณยุทธ',
+                  'วัฒพงษ์',
+                  'ราเชน',
+                  'นฤชิต',
+                  'จีรวัฒน์',
+                  'สุเมธร์',
+                  'นที']
+
+
+# Get the name of a nurse
+def map_name_person(n):
+    return name_of_person[n]
+
+
+# Get name of type of a nurse
+def name_of_type_nurse(n):
+    return roles[n]
 
 
 def get_days_in_year(year):
@@ -31,8 +58,35 @@ def create_list(number_of_nurse, days_in_month):
     return np.zeros((number_of_nurse, days_in_month, 3))
 
 
+def get_max_diff_type(A, B, total_shifts):
+    if A > B:
+        list1 = A
+        list2 = B
+    else:
+        list1 = B
+        list2 = A
+
+    min_shift = math.floor(total_shifts / (len(list1) + len(list2)))
+
+    element_counts = {element: 0 for element in list1 + list2}
+    result = []
+
+    count_pair = 0
+    for k in range(math.floor(total_shifts / (len(list1)) * len(list2))):
+        for b in list2:
+            for a in list1:
+                if count_pair >= total_shifts:
+                    break
+                if b != a and element_counts[b] < min_shift and element_counts[a] < min_shift:
+                    count_pair += 1
+                    element_counts[a] += 1
+                    element_counts[b] += 1
+                    result += [(a, b)]
+    return count_pair
+
+
 # Define the types of nurses
-types = ["Type1", "Type2"]
+types = ["Programmer", "Service"]
 all_types = range(len(types))
 
 # (EASY) (FINISH)
@@ -66,8 +120,8 @@ all_types = range(len(types))
 # Type of nurses
 
 # programmer = 8, service = 6
-roles = ["Type1", "Type1", "Type1", "Type1", "Type1", "Type1", "Type1", "Type1",
-         "Type2", "Type2", "Type2", "Type2", "Type2", "Type2", "Type2", "Type2"]
+roles = ["Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer",
+         "Service", "Service", "Service", "Service", "Service", "Service"]
 
 year_ = 2023
 month_ = 1
@@ -326,6 +380,36 @@ def main():
     # Nurse type priority
     type_priority = [['Type1', 'Type2'], ['Type1', 'Type1'], ['Type2', 'Type2']]
 
+    # Prioritize shift patterns
+    # for d in all_days:
+    #     for n in all_nurses:
+    #         model.Add(shifts[(n, d, 1)] <= shifts[(n, d, 2)])  # (1,2) same
+
+    max_diff_pair = get_max_diff_type()
+    max_diff_count = 0
+    # Each shift ensure different type of nurses
+    for d in all_weekends:
+        for s in all_shifts:
+            if max_diff_count <= max_diff_pair:
+                max_diff_count += 1
+                for t in all_types:
+                    type_count = 0
+                    for n in all_nurses:
+                        if type_of_nurse(n) == t:
+                            type_count += shifts[(n, d, s)]
+                    model.Add(type_count <= 1)
+
+    for d in all_working_days:
+        for s in all_shifts:
+            if s != 0:
+                if max_diff_count <= max_diff_pair:
+                    max_diff_count += 1
+                    for t in all_types:
+                        type_count = 0
+                        for n in all_nurses:
+                            if type_of_nurse(n) == t:
+                                type_count += shifts[(n, d, s)]
+                        model.Add(type_count <= 1)
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
     '''
     # Each shift ensure different type of nurses
@@ -334,7 +418,7 @@ def main():
             for s in all_shifts:
                 for t in all_types:
                     model.Add(sum(shifts[(n, d, s)] for n in all_nurses if type_of_nurse(n) == t) <= 1)
-
+    
     # Prioritize shift patterns
     for d in all_days:
         if d <= 10:
@@ -345,7 +429,7 @@ def main():
     '''
     # pylint: disable=g-complex-comprehension
     model.Maximize(
-        sum(shift_requests[n - 1][d - 1][s - 1] * shifts[(n, d, s)] for n in all_nurses
+        sum(shift_requests[n][d - 1][s] * shifts[(n, d, s)] for n in all_nurses
             for d in all_days for s in all_shifts))
 
     # Creates the solver and solve.
@@ -359,10 +443,12 @@ def main():
             for s in all_shifts:
                 for n in all_nurses:
                     if solver.Value(shifts[(n, d, s)]) == 1:
-                        if shift_requests[n - 1][d - 1][s - 1] == 1:
-                            print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(requested).')
+                        if shift_requests[n][d - 1][s] == 1:
+                            print(name_of_type_nurse(n), map_name_person(n), 'works shift', s,
+                                  '(requested).')
                         else:
-                            print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(not requested).')
+                            print(name_of_type_nurse(n), map_name_person(n), 'works shift', s,
+                                  '(not requested).')
             print()
         print(f'Number of shift requests met = {solver.ObjectiveValue()}',
               f'(out of {all_shifts})')
@@ -416,16 +502,18 @@ def main():
                     elif s == 2:
                         night_shifts[n] += solver.Value(shifts[(n, d, s)])
 
-        print('Type', type_of_nurse(n), 'Nurse', n, ' has ', num_shifts_worked, 'shifts normal day', num_shifts_holi,
+        print(name_of_type_nurse(n), map_name_person(n), ' has ', num_shifts_worked, 'shifts normal day',
+              num_shifts_holi,
               'shifts holiday',
               num_shifts_worked + num_shifts_holi, 'total shifts')
         sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi
 
-    # Print the results
+        # Print the results
     for n in all_nurses:
-        print("Nurse ", n, " morning_shifts: ", solver.Value(morning_shifts[n]), " afternoon_shifts: ",
+        print(map_name_person(n), " morning_shifts: ", solver.Value(morning_shifts[n]),
+              " afternoon_shifts: ",
               solver.Value(afternoon_shifts[n]), " night_shifts: ", solver.Value(night_shifts[n]))
-        print("Nurse ", n, " morning_shifts_h: ", solver.Value(morning_shifts_h[n]),
+        print(map_name_person(n), " morning_shifts_h: ", solver.Value(morning_shifts_h[n]),
               " afternoon_shifts_h: ",
               solver.Value(afternoon_shifts_h[n]), " night_shifts_h: ", solver.Value(night_shifts_h[n]))
         print('---')

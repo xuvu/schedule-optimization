@@ -7,6 +7,45 @@ import numpy as np
 from pandas import date_range
 import itertools
 
+name_of_person = ['ภูวเนตร',
+                  'ราเชนทร์',
+                  'พลกฤต',
+                  'ชานนท์',
+                  'ปรมะ',
+                  'สัญญา',
+                  'วินัย',
+                  'รณยุทธ',
+                  'วัฒพงษ์',
+                  'ราเชน',
+                  'นฤชิต',
+                  'จีรวัฒน์',
+                  'สุเมธร์',
+                  'นที',
+                  'A',
+                  'B']
+
+# Type of nurses
+# programmer = 8, service = 8
+roles = ["Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer",
+         "Service", "Service", "Service", "Service", "Service", "Service", "Service", "Service"]
+
+
+# Get amount of each type
+def get_amount_of_each_type(r):
+    counts = {}
+    for role in r:
+        if role in counts:
+            counts[role] += 1
+        else:
+            counts[role] = 1
+
+    return counts
+
+
+# Get the name of a nurse
+def map_name_person(n):
+    return name_of_person[n]
+
 
 def weekend_days_in_month(year, month):
     cal = calendar.Calendar()
@@ -40,10 +79,18 @@ def is_holiday(day, list_of_holiday):
         return False
 
 
-def get_max_diff_type():
-    total_shifts = 142
-    list1 = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']
-    list2 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
+def get_max_diff_type(r, total_shifts):
+    role_count = get_amount_of_each_type(roles)
+
+    min_value = min(role_count.values())
+    min_type = [key for key, value in role_count.items() if value == min_value]
+
+    max_value = max(role_count.values())
+    max_type = [key for key, value in role_count.items() if value == max_value]
+
+    list1 = [f"{k}{i}" for i, k in enumerate(roles, 1) if k == str(max_type[0])]
+    list2 = [f"{k}{i}" for i, k in enumerate(roles, 1) if k == str(min_type[0])]
+
     min_shift = math.floor(total_shifts / (len(list1) + len(list2)))
 
     element_counts = {element: 0 for element in list1 + list2}
@@ -64,7 +111,7 @@ def get_max_diff_type():
 
 
 # Define the types of nurses
-types = ["Type1", "Type2"]
+types = ["Programmer", "Service"]
 all_types = range(len(types))
 
 # (EASY) (FINISH)
@@ -95,19 +142,18 @@ all_types = range(len(types))
 # afternoon to night (1,2) the highest priority with same person => (1,2) different person
 # (0,1) if (1,2) can't happen
 
-# Type of nurses
-
-# programmer = 8, service = 6
-roles = ["Type1", "Type1", "Type1", "Type1", "Type1", "Type1", "Type1", "Type1",
-         "Type2", "Type2", "Type2", "Type2", "Type2", "Type2"]
-
 year_ = 2023
 month_ = 1
 
 
-# Define the type of nurse for each nurse
+# Get type index of a nurse
 def type_of_nurse(n):
     return types.index(roles[n])
+
+
+# Get name of type of a nurse
+def name_of_type_nurse(n):
+    return roles[n]
 
 
 def main():
@@ -155,7 +201,6 @@ def main():
         for s in all_shifts:
             model.Add(sum(shifts[(n, d, s)] for n in all_nurses) == 1)
     """
-
     # forbidden morning shift in working day
     for n in all_nurses:
         for d in all_working_days:
@@ -381,7 +426,9 @@ def main():
         model.Add((num_shift_worked + num_shift_worked_h) <= total_max)
         # ---------------------------------------------------------------
 
-    max_diff_pair = get_max_diff_type()
+    all_shift_count = ((total_holidays * (num_shifts - 0)) + (
+            total_working_days * (num_shifts - len(forbidden_shifts)))) * num_of_nurse_per_shift
+    max_diff_pair = get_max_diff_type(roles, all_shift_count)
     max_diff_count = 0
     # Each shift ensure different type of nurses
     for d in all_weekends:
@@ -416,20 +463,55 @@ def main():
     solver = cp_model.CpSolver()
     status = solver.Solve(model)
 
+    import openpyxl
+    from openpyxl.styles import PatternFill
+
+    # Create a new Excel workbook
+    wb = openpyxl.Workbook()
+
+    # Select the active sheet
+    sheet = wb.active
+
+    # red color for cell
+    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+
     if status == cp_model.OPTIMAL:
+        # sheet['B1'] = 'Morning (08.00 - 16.00)'
+        # sheet['C1'] = 'Afternoon (16.00-24.00)'
+        # sheet['D1'] = 'Night (24.00-8.00)'
+
+        shift_cell_text = ['Morning (08.00 - 16.00)', 'Afternoon (16.00-24.00)', 'Night (24.00-8.00)']
         print('Solution:')
         for d in all_days:
             print('Day', d, d in all_weekends)
+
+            # cell_pos = 'A' + str(d + 2)
+            # sheet[cell_pos] = d
+
+            current_shift_cell = range((num_shifts * (d - 1)) + 1, (num_shifts * d) + 1)
+
+            shift_column = ['C', 'D']
+
+            sheet['A' + str(current_shift_cell[0])] = d
+            sheet.merge_cells('A' + str(current_shift_cell[0]), 'A' + str(current_shift_cell[2]))
+
             for s in all_shifts:
+                current_shift_column = shift_column[0]
+                sheet['B' + str(current_shift_cell[s])] = shift_cell_text[s]
+
                 for n in all_nurses:
                     if solver.Value(shifts[(n, d, s)]) == 1:
                         if shift_requests[n][d - 1][s] == 1:
-                            print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(requested).')
+                            sheet[current_shift_column + str(current_shift_cell[s])] = map_name_person(n) + name_of_type_nurse(n)
+                            current_shift_column = shift_column[1]
                         else:
-                            print('Type', type_of_nurse(n), 'Nurse', n, 'works shift', s, '(not requested).')
+                            sheet[current_shift_column + str(current_shift_cell[s])] = map_name_person(n) + name_of_type_nurse(n)
+                            current_shift_column = shift_column[1]
+
             print()
         print(f'Number of shift requests met = {solver.ObjectiveValue()}',
               f'(out of {all_shifts})')
+
     else:
         print('No optimal solution found !')
 
@@ -480,16 +562,21 @@ def main():
                     elif s == 2:
                         night_shifts[n] += solver.Value(shifts[(n, d, s)])
 
-        print('Type', type_of_nurse(n), 'Nurse', n, ' has ', num_shifts_worked, 'shifts normal day', num_shifts_holi,
+        print(name_of_type_nurse(n), map_name_person(n), ' has ', num_shifts_worked, 'shifts normal day',
+              num_shifts_holi,
               'shifts holiday',
               num_shifts_worked + num_shifts_holi, 'total shifts')
         sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi
 
     # Print the results
+    current_cell_num = 3
     for n in all_nurses:
-        print("Nurse ", n, " morning_shifts: ", solver.Value(morning_shifts[n]), " afternoon_shifts: ",
+        sheet['G' + str(current_cell_num)] = map_name_person(n)
+        current_cell_num += 1
+        print(map_name_person(n), " morning_shifts: ", solver.Value(morning_shifts[n]),
+              " afternoon_shifts: ",
               solver.Value(afternoon_shifts[n]), " night_shifts: ", solver.Value(night_shifts[n]))
-        print("Nurse ", n, " morning_shifts_h: ", solver.Value(morning_shifts_h[n]),
+        print(map_name_person(n), " morning_shifts_h: ", solver.Value(morning_shifts_h[n]),
               " afternoon_shifts_h: ",
               solver.Value(afternoon_shifts_h[n]), " night_shifts_h: ", solver.Value(night_shifts_h[n]))
         print('---')
@@ -503,6 +590,9 @@ def main():
     print(sum_all_shifts)
     print('sum min total shift', total_min)
     print('sum max total shift', total_max)
+
+    # Save the workbook
+    wb.save("sample.xlsx")
 
 
 if __name__ == '__main__':
