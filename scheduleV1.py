@@ -386,31 +386,31 @@ def main():
     #     for n in all_nurses:
     #         model.Add(shifts[(n, d, 1)] <= shifts[(n, d, 2)])  # (1,2) same
 
-    max_diff_pair = get_max_diff_type()
-    max_diff_count = 0
-    # Each shift ensure different type of nurses
-    for d in all_weekends:
-        for s in all_shifts:
-            if max_diff_count <= max_diff_pair:
-                max_diff_count += 1
-                for t in all_types:
-                    type_count = 0
-                    for n in all_nurses:
-                        if type_of_nurse(n) == t:
-                            type_count += shifts[(n, d, s)]
-                    model.Add(type_count <= 1)
-
-    for d in all_working_days:
-        for s in all_shifts:
-            if s != 0:
-                if max_diff_count <= max_diff_pair:
-                    max_diff_count += 1
-                    for t in all_types:
-                        type_count = 0
-                        for n in all_nurses:
-                            if type_of_nurse(n) == t:
-                                type_count += shifts[(n, d, s)]
-                        model.Add(type_count <= 1)
+    # max_diff_pair = get_max_diff_type()
+    # max_diff_count = 0
+    # # Each shift ensure different type of nurses
+    # for d in all_weekends:
+    #     for s in all_shifts:
+    #         if max_diff_count <= max_diff_pair:
+    #             max_diff_count += 1
+    #             for t in all_types:
+    #                 type_count = 0
+    #                 for n in all_nurses:
+    #                     if type_of_nurse(n) == t:
+    #                         type_count += shifts[(n, d, s)]
+    #                 model.Add(type_count <= 1)
+    #
+    # for d in all_working_days:
+    #     for s in all_shifts:
+    #         if s != 0:
+    #             if max_diff_count <= max_diff_pair:
+    #                 max_diff_count += 1
+    #                 for t in all_types:
+    #                     type_count = 0
+    #                     for n in all_nurses:
+    #                         if type_of_nurse(n) == t:
+    #                             type_count += shifts[(n, d, s)]
+    #                     model.Add(type_count <= 1)
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
     '''
     # Each shift ensure different type of nurses

@@ -1,5 +1,6 @@
 """Nurse scheduling problem with shift requests."""
 import math
+from datetime import date
 
 from ortools.sat.python import cp_model
 import calendar
@@ -24,7 +25,7 @@ name_of_person = ['ภูวเนตร',
                   ]
 
 # Type of nurses
-# programmer = 8, service = 8
+# programmer = 8, service = 6
 roles = ["Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer", "Programmer",
          "Service", "Service", "Service", "Service", "Service", "Service"]
 
@@ -46,20 +47,21 @@ def map_name_person(n):
     return name_of_person[n]
 
 
-def weekend_days_in_month(year, month):
-    cal = calendar.Calendar()
-    weekend_days = [day for day in cal.itermonthdays(year, month) if
-                    day and calendar.weekday(year, month, day) >= 5]
+def get_weekend_days_in_year(year):
+    weekend_days = []
+    normal_day = 1
+    for month in range(1, 13):
+        for day in range(1, calendar.monthrange(year, month)[1] + 1):
+            current_date = date(year, month, day)
+            if current_date.weekday() in [5, 6]:
+                weekend_days.append(normal_day)
+            normal_day += 1
     return weekend_days
 
 
-def get_days_in_month(year, month):
-    start_date = f'{year}-{month}-01'
-    last_day = calendar.monthrange(year, month)[1]
-    end_date = f'{year}-{month}-{last_day}'
-    days = date_range(start=start_date, end=end_date, freq='D')
-    day_list = [day.day for day in days]
-    return day_list
+def get_days_in_year(year):
+    days_in_year = [i for i in range(1, 366)]
+    return days_in_year
 
 
 def create_list(number_of_nurse, days_in_month, num_shift_per_day, num_nurse_per_shift):
@@ -164,9 +166,9 @@ def main():
     global total_min, total_max
     num_nurses = len(roles)
     all_nurses = range(num_nurses)
-    all_days = get_days_in_month(year_, month_)
+    all_days = get_days_in_year(year_)
 
-    all_weekends = weekend_days_in_month(year_, month_)
+    all_weekends = get_weekend_days_in_year(year_)
     all_working_days = set(all_days) - set(all_weekends)
 
     total_working_days = len(all_working_days)
@@ -226,7 +228,7 @@ def main():
                     model.Add(sum(shifts[(n, d, s, k)] for n in all_nurses) == 1)
 
     # For each nurse shouldn't have more than 2 shifts within 4 days
-    day_interval = 3
+    day_interval = 4
     maximum_shifts = 2
     for n in all_nurses:
         for d in all_days:  # d = 1,2,3,4,5,...,total_day, d = 1
@@ -484,20 +486,20 @@ def main():
                             num_shifts_night_h_S += shifts[(n, d, s, k)]
 
         # all shifts constraint working day
-        model.Add(min_shifts_per_nurse - 1 <= num_shift_worked)
-        model.Add(num_shift_worked <= max_shifts_per_nurse + 1)
-
-        # all shifts constraint holiday
-        model.Add(min_shifts_per_nurse_h <= num_shift_worked_h)
-        model.Add(num_shift_worked_h <= max_shifts_per_nurse_h)
-
-        # all shifts constraint working day (S)
-        model.Add(min_shifts_per_nurse_S - 1 <= num_shift_worked_S)
-        model.Add(num_shift_worked_S <= max_shifts_per_nurse_S + 1)
-
-        # all shifts constraint holiday (S)
-        model.Add(min_shifts_per_nurse_h_S <= num_shift_worked_h_S)
-        model.Add(num_shift_worked_h_S <= max_shifts_per_nurse_h_S)
+        # model.Add(min_shifts_per_nurse <= num_shift_worked)
+        # model.Add(num_shift_worked <= max_shifts_per_nurse)
+        #
+        # # all shifts constraint holiday
+        # model.Add(min_shifts_per_nurse_h <= num_shift_worked_h)
+        # model.Add(num_shift_worked_h <= max_shifts_per_nurse_h)
+        #
+        # # all shifts constraint working day (S)
+        # model.Add(min_shifts_per_nurse_S <= num_shift_worked_S)
+        # model.Add(num_shift_worked_S <= max_shifts_per_nurse_S)
+        #
+        # # all shifts constraint holiday (S)
+        # model.Add(min_shifts_per_nurse_h_S <= num_shift_worked_h_S)
+        # model.Add(num_shift_worked_h_S <= max_shifts_per_nurse_h_S)
 
         # morning shifts constraint (Forbidden)
         # model.Add(min_morning_shift_per_nurse <= num_shifts_morning)
@@ -508,7 +510,7 @@ def main():
         # distribution constraint
 
         # soften the constraint of working day shifts
-        slack = 1
+        slack = 0
 
         # afternoon shifts constraint working day
         model.Add(min_afternoon_shift_per_nurse - slack <= num_shifts_afternoon)
@@ -527,7 +529,7 @@ def main():
         model.Add(num_shifts_night_S <= max_night_shift_per_nurse_S + slack)
 
         # soften the constraint for holiday shifts
-        slack_h = 1
+        slack_h = 0
 
         # morning shifts constraint holiday
         model.Add(min_morning_shift_per_nurse_h - slack_h <= num_shifts_morning_h)
@@ -563,8 +565,8 @@ def main():
         total_max = max_shifts_per_nurse + max_shifts_per_nurse_h + max_shifts_per_nurse_S + max_shifts_per_nurse_h_S + max_total_slack
 
         # Total shifts should be equal
-        model.Add(total_min + 1 <= (num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S))
-        model.Add((num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S) <= total_max)
+        # model.Add(total_min <= (num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S))
+        # model.Add((num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S) <= total_max)
         # ---------------------------------------------------------------
 
     all_shift_count = ((total_holidays * (num_shifts - 0)) + (
