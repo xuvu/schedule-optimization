@@ -228,7 +228,7 @@ def main():
                     model.Add(sum(shifts[(n, d, s, k)] for n in all_nurses) == 1)
 
     # For each nurse shouldn't have more than 2 shifts within 4 days
-    day_interval = 4
+    day_interval = 3
     maximum_shifts = 2
     for n in all_nurses:
         for d in all_days:  # d = 1,2,3,4,5,...,total_day, d = 1
@@ -254,10 +254,10 @@ def main():
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
 
     # Prioritize shift patterns
-    for d in all_days:
-        for n in all_nurses:
-            for k in all_nurse_per_shift:
-                model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2) same
+    # for d in all_days:
+    #     for n in all_nurses:
+    #         for k in all_nurse_per_shift:
+    #             model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2) same
 
     '''
     # Prioritize shift patterns
@@ -763,10 +763,10 @@ def main():
                                 night_shifts_S[n] += solver.Value(shifts[(n, d, s, k)])
 
         print(name_of_type_nurse(n), map_name_person(n), ' has ',
-              num_shifts_worked, 'shifts normal day',
-              num_shifts_holi, 'shifts holiday',
-              num_shifts_worked + num_shifts_holi, 'total shifts')
-        sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi
+              num_shifts_worked + num_shifts_worked_S, 'shifts normal day',
+              num_shifts_holi + num_shifts_holi_S, 'shifts holiday',
+              num_shifts_worked + num_shifts_holi + num_shifts_worked_S + num_shifts_holi_S, 'total shifts')
+        sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi + num_shifts_worked_S + num_shifts_holi_S
 
     # Print the results
     current_cell_num = [3, 22, 41, 60, 79]
