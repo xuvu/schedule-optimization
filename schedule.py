@@ -161,7 +161,14 @@ def main():
     # Each nurse can request to be assigned to specific shifts.
     # The optimal assignment maximizes the number of fulfilled shift requests
 
-    global total_min, total_max
+    total_min_working = 0
+    total_max_working = 0
+    total_min_working_h = 0
+    total_max_working_h = 0
+    total_min_working_S = 0
+    total_max_working_S = 0
+    total_min_working_h_S = 0
+    total_max_working_h_S = 0
     num_nurses = len(roles)
     all_nurses = range(num_nurses)
     all_days = get_days_in_month(year_, month_)
@@ -205,6 +212,7 @@ def main():
         for s in all_shifts:
             model.Add(sum(shifts[(n, d, s)] for n in all_nurses) == 1)
     """
+
     # forbidden morning shift in working day
     for n in all_nurses:
         for d in all_working_days:
@@ -274,35 +282,35 @@ def main():
     # number of shifts is not divisible by the number of nurses, some nurses will
     # be assigned one more shift.
 
-    # min-max working day
-    working_shift_per_day = ((num_shifts - len(forbidden_shifts)) * (num_of_nurse_per_shift - 1))
-    min_shifts_per_nurse = (working_shift_per_day * total_working_days) // num_nurses
-    if working_shift_per_day * total_working_days % num_nurses == 0:
-        max_shifts_per_nurse = min_shifts_per_nurse
-    else:
-        max_shifts_per_nurse = min_shifts_per_nurse + 1
-
-    # min-max holiday day
-    min_shifts_per_nurse_h = ((num_shifts * (num_of_nurse_per_shift - 1)) * total_holidays) // num_nurses
-    if (num_shifts * (num_of_nurse_per_shift - 1)) * total_holidays % num_nurses == 0:
-        max_shifts_per_nurse_h = min_shifts_per_nurse_h
-    else:
-        max_shifts_per_nurse_h = min_shifts_per_nurse_h + 1
-
-    # min-max working day (S)
-    working_shift_per_day = ((num_shifts - len(forbidden_shifts)) * (num_of_nurse_per_shift - 2))
-    min_shifts_per_nurse_S = (working_shift_per_day * total_working_days) // num_nurses
-    if working_shift_per_day * total_working_days % num_nurses == 0:
-        max_shifts_per_nurse_S = min_shifts_per_nurse_S
-    else:
-        max_shifts_per_nurse_S = min_shifts_per_nurse_S + 1
-
-    # min-max holiday day (S)
-    min_shifts_per_nurse_h_S = ((num_shifts * (num_of_nurse_per_shift - 2)) * total_holidays) // num_nurses
-    if (num_shifts * (num_of_nurse_per_shift - 2)) * total_holidays % num_nurses == 0:
-        max_shifts_per_nurse_h_S = min_shifts_per_nurse_h_S
-    else:
-        max_shifts_per_nurse_h_S = min_shifts_per_nurse_h_S + 1
+    # # min-max working day
+    # working_shift_per_day = ((num_shifts - len(forbidden_shifts)) * (num_of_nurse_per_shift - 1))
+    # min_shifts_per_nurse = (working_shift_per_day * total_working_days) // num_nurses
+    # if working_shift_per_day * total_working_days % num_nurses == 0:
+    #     max_shifts_per_nurse = min_shifts_per_nurse
+    # else:
+    #     max_shifts_per_nurse = min_shifts_per_nurse + 1
+    #
+    # # min-max holiday day
+    # min_shifts_per_nurse_h = ((num_shifts * (num_of_nurse_per_shift - 1)) * total_holidays) // num_nurses
+    # if (num_shifts * (num_of_nurse_per_shift - 1)) * total_holidays % num_nurses == 0:
+    #     max_shifts_per_nurse_h = min_shifts_per_nurse_h
+    # else:
+    #     max_shifts_per_nurse_h = min_shifts_per_nurse_h + 1
+    #
+    # # min-max working day (S)
+    # working_shift_per_day = ((num_shifts - len(forbidden_shifts)) * (num_of_nurse_per_shift - 2))
+    # min_shifts_per_nurse_S = (working_shift_per_day * total_working_days) // num_nurses
+    # if working_shift_per_day * total_working_days % num_nurses == 0:
+    #     max_shifts_per_nurse_S = min_shifts_per_nurse_S
+    # else:
+    #     max_shifts_per_nurse_S = min_shifts_per_nurse_S + 1
+    #
+    # # min-max holiday day (S)
+    # min_shifts_per_nurse_h_S = ((num_shifts * (num_of_nurse_per_shift - 2)) * total_holidays) // num_nurses
+    # if (num_shifts * (num_of_nurse_per_shift - 2)) * total_holidays % num_nurses == 0:
+    #     max_shifts_per_nurse_h_S = min_shifts_per_nurse_h_S
+    # else:
+    #     max_shifts_per_nurse_h_S = min_shifts_per_nurse_h_S + 1
 
     # All working shifts min-max variable
     # ---------------------------------------------------------------
@@ -315,14 +323,24 @@ def main():
     min_night_shift_per_nurse_S = (total_working_days * (num_of_nurse_per_shift - 2)) // num_nurses
 
     if min_morning_shift_per_nurse_S == 0 and (total_working_days * (num_of_nurse_per_shift - 2)) != 0:
-        min_morning_shift_per_nurse_S = 1
-        max_morning_shift_per_nurse_S = 1
+        if num_nurses * (num_of_nurse_per_shift - 2) > total_working_days * (num_of_nurse_per_shift - 2):
+            min_morning_shift_per_nurse_S = 0
+            max_morning_shift_per_nurse_S = 1
 
-        min_afternoon_shift_per_nurse_S = 1
-        max_afternoon_shift_per_nurse_S = 1
+            min_afternoon_shift_per_nurse_S = 0
+            max_afternoon_shift_per_nurse_S = 1
 
-        min_night_shift_per_nurse_S = 1
-        max_night_shift_per_nurse_S = 1
+            min_night_shift_per_nurse_S = 0
+            max_night_shift_per_nurse_S = 1
+        else:
+            min_morning_shift_per_nurse_S = 1
+            max_morning_shift_per_nurse_S = 1
+
+            min_afternoon_shift_per_nurse_S = 1
+            max_afternoon_shift_per_nurse_S = 1
+
+            min_night_shift_per_nurse_S = 1
+            max_night_shift_per_nurse_S = 1
 
     elif (total_working_days * (num_of_nurse_per_shift - 2)) % num_nurses == 0:
         max_morning_shift_per_nurse_S = min_morning_shift_per_nurse_S
@@ -334,14 +352,24 @@ def main():
         max_night_shift_per_nurse_S = min_morning_shift_per_nurse_S + 1
 
     if min_morning_shift_per_nurse == 0 and (total_working_days * (num_of_nurse_per_shift - 1)) != 0:
-        min_morning_shift_per_nurse = 1
-        max_morning_shift_per_nurse = 1
+        if num_nurses * (num_of_nurse_per_shift - 1) > total_working_days * (num_of_nurse_per_shift - 1):
+            min_morning_shift_per_nurse = 0
+            max_morning_shift_per_nurse = 1
 
-        min_afternoon_shift_per_nurse = 1
-        max_afternoon_shift_per_nurse = 1
+            min_afternoon_shift_per_nurse = 0
+            max_afternoon_shift_per_nurse = 1
 
-        min_night_shift_per_nurse = 1
-        max_night_shift_per_nurse = 1
+            min_night_shift_per_nurse = 0
+            max_night_shift_per_nurse = 1
+        else:
+            min_morning_shift_per_nurse = 1
+            max_morning_shift_per_nurse = 1
+
+            min_afternoon_shift_per_nurse = 1
+            max_afternoon_shift_per_nurse = 1
+
+            min_night_shift_per_nurse = 1
+            max_night_shift_per_nurse = 1
 
     elif (total_working_days * (num_of_nurse_per_shift - 1)) % num_nurses == 0:
         max_morning_shift_per_nurse = min_morning_shift_per_nurse
@@ -364,14 +392,24 @@ def main():
     min_night_shift_per_nurse_h_S = (total_holidays * (num_of_nurse_per_shift - 2)) // num_nurses
 
     if min_morning_shift_per_nurse_h_S == 0 and (total_holidays * (num_of_nurse_per_shift - 2)) != 0:
-        min_morning_shift_per_nurse_h_S = 1
-        max_morning_shift_per_nurse_h_S = 1
+        if num_nurses * (num_of_nurse_per_shift - 2) > total_holidays * (num_of_nurse_per_shift - 2):
+            min_morning_shift_per_nurse_h_S = 0
+            max_morning_shift_per_nurse_h_S = 1
 
-        min_afternoon_shift_per_nurse_h_S = 1
-        max_afternoon_shift_per_nurse_h_S = 1
+            min_afternoon_shift_per_nurse_h_S = 0
+            max_afternoon_shift_per_nurse_h_S = 1
 
-        min_night_shift_per_nurse_h_S = 1
-        max_night_shift_per_nurse_h_S = 1
+            min_night_shift_per_nurse_h_S = 0
+            max_night_shift_per_nurse_h_S = 1
+        else:
+            min_morning_shift_per_nurse_h_S = 1
+            max_morning_shift_per_nurse_h_S = 1
+
+            min_afternoon_shift_per_nurse_h_S = 1
+            max_afternoon_shift_per_nurse_h_S = 1
+
+            min_night_shift_per_nurse_h_S = 1
+            max_night_shift_per_nurse_h_S = 1
 
     elif (total_holidays * (num_of_nurse_per_shift - 2)) % num_nurses == 0:
         max_morning_shift_per_nurse_h_S = min_morning_shift_per_nurse_h_S
@@ -384,14 +422,24 @@ def main():
         max_night_shift_per_nurse_h_S = min_night_shift_per_nurse_h_S + 1
 
     if min_morning_shift_per_nurse_h == 0 and (total_holidays * (num_of_nurse_per_shift - 1)) != 0:
-        min_morning_shift_per_nurse_h = 1
-        max_morning_shift_per_nurse_h = 1
+        if num_nurses * (num_of_nurse_per_shift - 1) > total_working_days * (num_of_nurse_per_shift - 1):
+            min_morning_shift_per_nurse_h = 0
+            max_morning_shift_per_nurse_h = 1
 
-        min_afternoon_shift_per_nurse_h = 1
-        max_afternoon_shift_per_nurse_h = 1
+            min_afternoon_shift_per_nurse_h = 0
+            max_afternoon_shift_per_nurse_h = 1
 
-        min_night_shift_per_nurse_h = 1
-        max_night_shift_per_nurse_h = 1
+            min_night_shift_per_nurse_h = 0
+            max_night_shift_per_nurse_h = 1
+        else:
+            min_morning_shift_per_nurse_h = 1
+            max_morning_shift_per_nurse_h = 1
+
+            min_afternoon_shift_per_nurse_h = 1
+            max_afternoon_shift_per_nurse_h = 1
+
+            min_night_shift_per_nurse_h = 1
+            max_night_shift_per_nurse_h = 1
 
     elif (total_holidays * (num_of_nurse_per_shift - 1)) % num_nurses == 0:
         max_morning_shift_per_nurse_h = min_morning_shift_per_nurse_h
@@ -483,21 +531,21 @@ def main():
                             num_shift_worked_h_S += shifts[(n, d, s, k)]
                             num_shifts_night_h_S += shifts[(n, d, s, k)]
 
-        # all shifts constraint working day
-        model.Add(min_shifts_per_nurse - 1 <= num_shift_worked)
-        model.Add(num_shift_worked <= max_shifts_per_nurse + 1)
-
-        # all shifts constraint holiday
-        model.Add(min_shifts_per_nurse_h <= num_shift_worked_h)
-        model.Add(num_shift_worked_h <= max_shifts_per_nurse_h)
-
-        # all shifts constraint working day (S)
-        model.Add(min_shifts_per_nurse_S - 1 <= num_shift_worked_S)
-        model.Add(num_shift_worked_S <= max_shifts_per_nurse_S + 1)
-
-        # all shifts constraint holiday (S)
-        model.Add(min_shifts_per_nurse_h_S <= num_shift_worked_h_S)
-        model.Add(num_shift_worked_h_S <= max_shifts_per_nurse_h_S)
+        # # all shifts constraint working day
+        # model.Add(min_shifts_per_nurse <= num_shift_worked)
+        # model.Add(num_shift_worked <= max_shifts_per_nurse + 1)
+        #
+        # # all shifts constraint holiday
+        # model.Add(min_shifts_per_nurse_h <= num_shift_worked_h)
+        # model.Add(num_shift_worked_h <= max_shifts_per_nurse_h)
+        #
+        # # all shifts constraint working day (S)
+        # model.Add(min_shifts_per_nurse_S-1 <= num_shift_worked_S)
+        # model.Add(num_shift_worked_S <= max_shifts_per_nurse_S)
+        #
+        # # all shifts constraint holiday (S)
+        # model.Add(min_shifts_per_nurse_h_S <= num_shift_worked_h_S)
+        # model.Add(num_shift_worked_h_S <= max_shifts_per_nurse_h_S + 1)
 
         # morning shifts constraint (Forbidden)
         # model.Add(min_morning_shift_per_nurse <= num_shifts_morning)
@@ -508,7 +556,7 @@ def main():
         # distribution constraint
 
         # soften the constraint of working day shifts
-        slack = 1
+        slack = 0
 
         # afternoon shifts constraint working day
         model.Add(min_afternoon_shift_per_nurse - slack <= num_shifts_afternoon)
@@ -527,7 +575,7 @@ def main():
         model.Add(num_shifts_night_S <= max_night_shift_per_nurse_S + slack)
 
         # soften the constraint for holiday shifts
-        slack_h = 1
+        slack_h = 0
 
         # morning shifts constraint holiday
         model.Add(min_morning_shift_per_nurse_h - slack_h <= num_shifts_morning_h)
@@ -553,18 +601,34 @@ def main():
         model.Add(min_night_shift_per_nurse_h_S - slack_h <= num_shifts_night_h_S)
         model.Add(num_shifts_night_h_S <= max_night_shift_per_nurse_h_S + slack_h)
 
-        # lower bound slack
-        min_total_slack = 0
+        # Distribute all shift for working day (Main hospital)
+        total_min_working = min_afternoon_shift_per_nurse + min_night_shift_per_nurse
+        total_max_working = max_afternoon_shift_per_nurse + max_night_shift_per_nurse
 
-        # upper bound slack
-        max_total_slack = 0
+        # Distribute all shift for holiday (Main hospital)
+        total_min_working_h = min_morning_shift_per_nurse_h + min_afternoon_shift_per_nurse_h + min_night_shift_per_nurse_h
+        total_max_working_h = max_morning_shift_per_nurse_h + max_afternoon_shift_per_nurse_h + max_night_shift_per_nurse_h
 
-        total_min = min_shifts_per_nurse + min_shifts_per_nurse_h + min_shifts_per_nurse_S + min_shifts_per_nurse_h_S - min_total_slack
-        total_max = max_shifts_per_nurse + max_shifts_per_nurse_h + max_shifts_per_nurse_S + max_shifts_per_nurse_h_S + max_total_slack
+        # Distribute all shift for working day (Child hospital)
+        total_min_working_S = min_afternoon_shift_per_nurse_S + min_night_shift_per_nurse_S
+        total_max_working_S = max_afternoon_shift_per_nurse_S + max_night_shift_per_nurse_S
 
-        # Total shifts should be equal
-        model.Add(total_min + 1 <= (num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S))
-        model.Add((num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S) <= total_max)
+        # Distribute all shift for holiday (Child hospital)
+        total_min_working_h_S = min_morning_shift_per_nurse_h_S + min_afternoon_shift_per_nurse_h_S + min_night_shift_per_nurse_h_S
+        total_max_working_h_S = max_morning_shift_per_nurse_h_S + max_afternoon_shift_per_nurse_h_S + max_night_shift_per_nurse_h_S
+
+        # # lower bound slack
+        # min_total_slack = +2
+        #
+        # # upper bound slack
+        # max_total_slack = 0
+        #
+        # total_min = min_shifts_per_nurse + min_shifts_per_nurse_h + min_shifts_per_nurse_S + min_shifts_per_nurse_h_S + min_total_slack
+        # total_max = max_shifts_per_nurse + max_shifts_per_nurse_h + max_shifts_per_nurse_S + max_shifts_per_nurse_h_S + max_total_slack
+        #
+        # # Total shifts should be equal
+        # model.Add(total_min <= (num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S))
+        # model.Add((num_shift_worked + num_shift_worked_h + num_shift_worked_S + num_shift_worked_h_S) <= total_max)
         # ---------------------------------------------------------------
 
     all_shift_count = ((total_holidays * (num_shifts - 0)) + (
@@ -572,7 +636,7 @@ def main():
     max_diff_pair = get_max_diff_type(roles, all_shift_count)
     max_diff_count = 0
 
-    # Each shift ensure different type of nurses
+    # # Each shift ensure different type of nurses
     # for d in all_weekends:
     #     for s in all_shifts:
     #         if max_diff_count <= max_diff_pair:
@@ -604,6 +668,30 @@ def main():
     model.Maximize(
         sum(shift_requests[n][d - 1][s][k] * shifts[(n, d, s, k)] for n in all_nurses
             for d in all_days for s in all_shifts for k in all_nurse_per_shift))
+
+    print('morning range (working day)', min_morning_shift_per_nurse, '<=', max_morning_shift_per_nurse)
+    print('afternoon range (working day)', min_afternoon_shift_per_nurse, '<=', max_afternoon_shift_per_nurse)
+    print('night range (working day)', min_night_shift_per_nurse, '<=', max_night_shift_per_nurse)
+    print('---')
+    print('morning range (holiday)', min_morning_shift_per_nurse_h, '<=', max_morning_shift_per_nurse_h)
+    print('afternoon range (holiday)', min_afternoon_shift_per_nurse_h, '<=', max_afternoon_shift_per_nurse_h)
+    print('night range (holiday)', min_night_shift_per_nurse_h, '<=', max_night_shift_per_nurse_h)
+    print('---')
+    print('morning range (working day)(S)', min_morning_shift_per_nurse_S, '<=', max_morning_shift_per_nurse_S)
+    print('afternoon range (working day)(S)', min_afternoon_shift_per_nurse_S, '<=', max_afternoon_shift_per_nurse_S)
+    print('night range (working day)(S)', min_night_shift_per_nurse_S, '<=', max_night_shift_per_nurse_S)
+    print('---')
+    print('morning range (holiday)(S)', min_morning_shift_per_nurse_h_S, '<=', max_morning_shift_per_nurse_h_S)
+    print('afternoon range (holiday)(S)', min_afternoon_shift_per_nurse_h_S, '<=', max_afternoon_shift_per_nurse_h_S)
+    print('night range (holiday)(S)', min_night_shift_per_nurse_h_S, '<=', max_night_shift_per_nurse_h_S)
+    print('---')
+    print('Total range (working day)', total_min_working, '<=', total_max_working)
+    print('Total range (holiday)', total_min_working_h, '<=', total_max_working_h)
+    print('Total range (working day) (S)', total_min_working_S, '<=', total_max_working_S)
+    print('Total range (holiday) (S)', total_min_working_h_S, '<=', total_max_working_h_S)
+    print('---')
+    # print('sum min total shift', total_min)
+    # print('sum max total shift', total_max)
 
     # Creates the solver and solve.
     solver = cp_model.CpSolver()
@@ -761,10 +849,10 @@ def main():
                                 night_shifts_S[n] += solver.Value(shifts[(n, d, s, k)])
 
         print(name_of_type_nurse(n), map_name_person(n), ' has ',
-              num_shifts_worked, 'shifts normal day',
-              num_shifts_holi, 'shifts holiday',
-              num_shifts_worked + num_shifts_holi, 'total shifts')
-        sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi
+              num_shifts_worked + num_shifts_worked_S, 'shifts normal day',
+              num_shifts_holi + num_shifts_holi_S, 'shifts holiday',
+              num_shifts_worked + num_shifts_holi + num_shifts_worked_S + num_shifts_holi_S, 'total shifts')
+        sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi + num_shifts_worked_S + num_shifts_holi_S
 
     # Print the results
     current_cell_num = [3, 22, 41, 60, 79]
@@ -855,20 +943,17 @@ def main():
               " afternoon_shifts_h: ",
               solver.Value(afternoon_shifts_h[n]), " night_shifts_h: ", solver.Value(night_shifts_h[n]))
 
-        print(" special_shifts: ", solver.Value(special_shift[n]))
+        print(map_name_person(n), " morning_shifts (S): ", solver.Value(morning_shifts_S[n]),
+              " afternoon_shifts (S): ",
+              solver.Value(afternoon_shifts_S[n]), " night_shifts (S): ", solver.Value(night_shifts_S[n]))
+
+        print(map_name_person(n), " morning_shifts_h (S): ", solver.Value(morning_shifts_h_S[n]),
+              " afternoon_shifts_h (S): ",
+              solver.Value(afternoon_shifts_h_S[n]), " night_shifts_h (S): ", solver.Value(night_shifts_h_S[n]))
 
         print('---')
 
-    print('min working shift', min_morning_shift_per_nurse, min_afternoon_shift_per_nurse, min_night_shift_per_nurse)
-    print('max working shift', max_morning_shift_per_nurse, max_afternoon_shift_per_nurse, max_night_shift_per_nurse)
-    print('min holiday shift', min_morning_shift_per_nurse_h, min_afternoon_shift_per_nurse_h,
-          min_night_shift_per_nurse_h)
-    print('max holiday shift', max_morning_shift_per_nurse_h, max_afternoon_shift_per_nurse_h,
-          max_night_shift_per_nurse_h)
     print(sum_all_shifts)
-    print('sum min total shift', total_min)
-    print('sum max total shift', total_max)
-
     # Save the workbook
     wb.save("sample.xlsx")
 
