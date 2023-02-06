@@ -113,6 +113,7 @@ def get_max_diff_type(r, total_shifts):
 types = ["Programmer", "Service"]
 all_types = range(len(types))
 
+
 # (EASY) (FINISH)
 # no morning shift in working day => good
 
@@ -141,9 +142,6 @@ all_types = range(len(types))
 # afternoon to night (1,2) the highest priority with same person => (1,2) different person
 # (0,1) if (1,2) can't happen
 
-year_ = 2023
-month_ = 1
-
 
 # Get type index of a nurse
 def type_of_nurse(n):
@@ -155,11 +153,14 @@ def name_of_type_nurse(n):
     return roles[n]
 
 
-def main():
+def main(m):
     # This program tries to find an optimal assignment of nurses to shifts
     # (3 shifts per day, for 7 days), subject to some constraints (see below).
     # Each nurse can request to be assigned to specific shifts.
     # The optimal assignment maximizes the number of fulfilled shift requests
+
+    year_ = 2023
+    month_ = m
 
     total_min_working = 0
     total_max_working = 0
@@ -169,6 +170,13 @@ def main():
     total_max_working_S = 0
     total_min_working_h_S = 0
     total_max_working_h_S = 0
+    total_min_working_all = 0
+    total_max_working_all = 0
+    total_min_holiday_all = 0
+    total_max_holiday_all = 0
+    total_min_summary = 0
+    total_max_summary = 0
+
     num_nurses = len(roles)
     all_nurses = range(num_nurses)
     all_days = get_days_in_month(year_, month_)
@@ -259,11 +267,11 @@ def main():
 
     # total possible way of pairing ['Type1', 'Type2'] is the product of the number of people for each type
 
-    # Prioritize shift patterns
-    for d in all_days:
-        for n in all_nurses:
-            for k in all_nurse_per_shift:
-                model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2) same
+    # # Prioritize shift patterns
+    # for d in all_days:
+    #     for n in all_nurses:
+    #         for k in all_nurse_per_shift:
+    #             model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2) same
 
     '''
     # Prioritize shift patterns
@@ -601,21 +609,82 @@ def main():
         model.Add(min_night_shift_per_nurse_h_S - slack_h <= num_shifts_night_h_S)
         model.Add(num_shifts_night_h_S <= max_night_shift_per_nurse_h_S + slack_h)
 
-        # Distribute all shift for working day (Main hospital)
+        # total min-max for distribution all shift for working day (Main hospital)
         total_min_working = min_afternoon_shift_per_nurse + min_night_shift_per_nurse
         total_max_working = max_afternoon_shift_per_nurse + max_night_shift_per_nurse
 
-        # Distribute all shift for holiday (Main hospital)
+        # total min-max for distribution all shift for holiday (Main hospital)
         total_min_working_h = min_morning_shift_per_nurse_h + min_afternoon_shift_per_nurse_h + min_night_shift_per_nurse_h
         total_max_working_h = max_morning_shift_per_nurse_h + max_afternoon_shift_per_nurse_h + max_night_shift_per_nurse_h
 
-        # Distribute all shift for working day (Child hospital)
+        # total min-max for distribution all shift for working day (Child hospital)
         total_min_working_S = min_afternoon_shift_per_nurse_S + min_night_shift_per_nurse_S
         total_max_working_S = max_afternoon_shift_per_nurse_S + max_night_shift_per_nurse_S
 
-        # Distribute all shift for holiday (Child hospital)
+        # total min-max for distribution all shift for holiday (Child hospital)
         total_min_working_h_S = min_morning_shift_per_nurse_h_S + min_afternoon_shift_per_nurse_h_S + min_night_shift_per_nurse_h_S
         total_max_working_h_S = max_morning_shift_per_nurse_h_S + max_afternoon_shift_per_nurse_h_S + max_night_shift_per_nurse_h_S
+
+        slack_all_min = -1
+        slack_all_max = +1
+
+        # total min-max distribution all shift for working day (All hospital)
+        total_max_working_all = math.floor(
+            (total_min_working + total_max_working + total_min_working_S + total_max_working_S) / 2) + slack_all_max
+        total_min_working_all = total_max_working_all - 1 + slack_all_min
+
+        # total min-max distribution all shift for holiday (All hospital)
+        total_max_holiday_all = math.floor(
+            (total_min_working_h + total_max_working_h + total_min_working_h_S + total_max_working_h_S) / 2)
+        total_min_holiday_all = total_max_holiday_all - 1
+
+        # total min-max distribution all shift (Summary)
+        total_max_summary = total_max_working_all + total_max_holiday_all
+        total_min_summary = total_min_working_all + total_min_holiday_all
+
+        total_max_summary = math.floor((total_max_summary + total_min_summary) / 2) + slack_all_max
+        total_min_summary = total_max_summary - 1 + slack_all_min
+
+        # Add the constraints
+        # Distribute all shift for working day (Main hospital)
+        # model.Add(6 <= num_shift_worked)
+        # model.Add(num_shift_worked <= 8)
+
+        model.Add(total_min_working <= num_shift_worked)
+        model.Add(num_shift_worked <= total_max_working)
+
+        # Distribute all shift for holiday (Main hospital)
+        # model.Add(3 <= num_shift_worked_h)
+        # model.Add(num_shift_worked_h <= 5)
+
+        model.Add(total_min_working_h <= num_shift_worked_h)
+        model.Add(num_shift_worked_h <= total_max_working_h)
+
+        # Distribute all shift for working day (Child hospital)
+        # model.Add(2 <= num_shift_worked_S)
+        # model.Add(num_shift_worked_S <= 4)
+        model.Add(total_min_working_S <= num_shift_worked_S)
+        model.Add(num_shift_worked_S <= total_max_working_S)
+
+        # Distribute all shift for holiday (Child hospital)
+        # model.Add(1 <= num_shift_worked_h_S)
+        # model.Add(num_shift_worked_h_S <= 3)
+        model.Add(total_min_working_h_S <= num_shift_worked_h_S)
+        model.Add(num_shift_worked_h_S <= total_max_working_h_S)
+
+        # Distribute all shift for working day (All hospital)
+        model.Add(total_min_working_all <= num_shift_worked_S + num_shift_worked)
+        model.Add(num_shift_worked_S + num_shift_worked <= total_max_working_all)
+
+        # Distribute all shift for holiday (All hospital)
+        model.Add(total_min_holiday_all <= num_shift_worked_h_S + num_shift_worked_h)
+        model.Add(num_shift_worked_h_S + num_shift_worked_h <= total_max_holiday_all)
+
+        # Distribute all shift (Summary)
+        model.Add(
+            total_min_summary <= num_shift_worked_S + num_shift_worked + num_shift_worked_h_S + num_shift_worked_h)
+        model.Add(
+            num_shift_worked_S + num_shift_worked + num_shift_worked_h_S + num_shift_worked_h <= total_max_summary)
 
         # # lower bound slack
         # min_total_slack = +2
@@ -690,6 +759,9 @@ def main():
     print('Total range (working day) (S)', total_min_working_S, '<=', total_max_working_S)
     print('Total range (holiday) (S)', total_min_working_h_S, '<=', total_max_working_h_S)
     print('---')
+    print('Total summary range (working day)', total_min_working_all, '<=', total_max_working_all)
+    print('Total summary range (holiday)', total_min_holiday_all, '<=', total_max_holiday_all)
+    print('Total summary range', total_min_summary, '<=', total_max_summary)
     # print('sum min total shift', total_min)
     # print('sum max total shift', total_max)
 
@@ -855,37 +927,44 @@ def main():
         sum_all_shifts = sum_all_shifts + num_shifts_worked + num_shifts_holi + num_shifts_worked_S + num_shifts_holi_S
 
     # Print the results
-    current_cell_num = [3, 22, 41, 60, 79]
-
+    current_cell_num = [3, 22]
+    summary_cell_num = 38
     # Type of shift day
-    sheet['I' + str(current_cell_num[0] - 2)] = 'วันทำการ'
-    sheet['I' + str(current_cell_num[1] - 2)] = 'วันหยุด'
-    sheet['I' + str(current_cell_num[2] - 2)] = 'วันทำการ รพ.เด็ก'
-    sheet['I' + str(current_cell_num[3] - 2)] = 'วันหยุด รพ.เด็ก'
-    sheet['I' + str(current_cell_num[4] - 2)] = 'สรุปผล'
+    # sheet['I' + str(current_cell_num[0] - 2)] = 'วันทำการ'
+    # sheet['I' + str(current_cell_num[1] - 2)] = 'วันหยุด'
+    # sheet['I' + str(current_cell_num[2] - 2)] = 'วันทำการ รพ.เด็ก'
+    # sheet['I' + str(current_cell_num[3] - 2)] = 'วันหยุด รพ.เด็ก'
+    # sheet['I' + str(current_cell_num[4] - 2)] = 'สรุปผล'
 
     # Create Summary section
     shift_cell_text = ['เช้า (08.00 - 16.00)', 'บ่าย (16.00-24.00)', 'ดึก (24.00-8.00)', 'รวม']
     shift_cell_text_final_summary = ['วันหยุดชดเชย', 'วันหยุด', 'วันทำการ', 'รวม']
-    field_summary = ['H', 'I', 'J', 'K']
+    field_summary = [['H', 'I', 'J', 'K'], ['N', 'O', 'P', 'Q'], ['T', 'U', 'V', 'W']]
 
-    shift_cell_text_pos = 0
-    for f in field_summary:
-        sheet[f + str(current_cell_num[0] - 1)] = shift_cell_text[shift_cell_text_pos]
-        sheet[f + str(current_cell_num[1] - 1)] = shift_cell_text[shift_cell_text_pos]
-        sheet[f + str(current_cell_num[2] - 1)] = shift_cell_text[shift_cell_text_pos]
-        sheet[f + str(current_cell_num[3] - 1)] = shift_cell_text[shift_cell_text_pos]
-        sheet[f + str(current_cell_num[4] - 1)] = shift_cell_text_final_summary[shift_cell_text_pos]
+    for c in current_cell_num:
+        for j in range(len(field_summary)):
+            shift_cell_text_pos = 0
+            for k in range(len(field_summary[j])):
+                sheet[field_summary[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
+                sheet[field_summary[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
+                sheet[field_summary[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
+                sheet[field_summary[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
 
-        shift_cell_text_pos += 1
+                shift_cell_text_pos += 1
 
+        shift_cell_text_pos = 0
+        for k in range(len(field_summary[0])):
+            sheet[field_summary[0][k] + str(summary_cell_num)] = shift_cell_text_final_summary[shift_cell_text_pos]
+            shift_cell_text_pos += 1
+
+    name_field = ['G', 'M', 'S']
     for n in all_nurses:
         # Put name into summary cell (Summary section)
-        sheet['G' + str(current_cell_num[0])] = map_name_person(n)
-        sheet['G' + str(current_cell_num[1])] = map_name_person(n)
-        sheet['G' + str(current_cell_num[2])] = map_name_person(n)
-        sheet['G' + str(current_cell_num[3])] = map_name_person(n)
-        sheet['G' + str(current_cell_num[4])] = map_name_person(n)
+        for c in range(len(current_cell_num)):
+            for nf in name_field:
+                sheet[nf + str(current_cell_num[c])] = map_name_person(n)
+
+        sheet['G' + str(summary_cell_num + 1)] = map_name_person(n)
 
         # Put the value in record
         sum_all_holiday = solver.Value(morning_shifts_h[n]) + solver.Value(afternoon_shifts_h[n]) + solver.Value(
@@ -915,25 +994,39 @@ def main():
         shift_cell_record_val_h_S = [solver.Value(morning_shifts_h_S[n]), solver.Value(afternoon_shifts_h_S[n]),
                                      solver.Value(night_shifts_h_S[n]), sum_all_holiday_S]
 
-        shift_cell_final_record_val = [0, sum_all_holiday + sum_all_holiday_S,
-                                       sum_all_working_day + sum_all_working_day_S,
-                                       sum_all_holiday + sum_all_working_day + sum_all_holiday_S + sum_all_working_day_S]
+        shift_cell_record_main_h = [solver.Value(morning_shifts[n]) + solver.Value(morning_shifts_h[n]),
+                                    solver.Value(afternoon_shifts[n]) + solver.Value(afternoon_shifts_h[n]),
+                                    solver.Value(night_shifts[n]) + solver.Value(night_shifts_h[n]),
+                                    sum_all_working_day + sum_all_holiday]
 
+        shift_cell_record_main_c = [solver.Value(morning_shifts_S[n]) + solver.Value(morning_shifts_h_S[n]),
+                                    solver.Value(afternoon_shifts_S[n]) + solver.Value(afternoon_shifts_h_S[n]),
+                                    solver.Value(night_shifts_S[n]) + solver.Value(night_shifts_h_S[n]),
+                                    sum_all_working_day_S + sum_all_holiday_S]
+
+        shift_cell_record_summary = [0, sum_all_holiday + sum_all_holiday_S,
+                                     sum_all_working_day + sum_all_working_day_S,
+                                     sum_all_holiday + sum_all_working_day + sum_all_holiday_S + sum_all_working_day_S]
+
+        # Summary
+        for column_ in range(len(field_summary[0])):
+            sheet[str(field_summary[0][column_]) + str(summary_cell_num+1)] = shift_cell_record_summary[column_]
+
+        # Main hospital summary
+        main_h = [shift_cell_record_val, shift_cell_record_val_h, shift_cell_record_main_h]
         # Loop through all shifts
-        shift_cell_text_pos = 0
-        for f in field_summary:
-            sheet[f + str(current_cell_num[0])] = shift_cell_record_val[shift_cell_text_pos]
-            sheet[f + str(current_cell_num[1])] = shift_cell_record_val_h[shift_cell_text_pos]
-            sheet[f + str(current_cell_num[2])] = shift_cell_record_val_S[shift_cell_text_pos]
-            sheet[f + str(current_cell_num[3])] = shift_cell_record_val_h_S[shift_cell_text_pos]
-            sheet[f + str(current_cell_num[4])] = shift_cell_final_record_val[shift_cell_text_pos]
-            shift_cell_text_pos += 1
+        for h in range(len(main_h)):
+            for j in range(len(field_summary)):
+                for k in range(len(field_summary[j])):
+                    sheet[field_summary[j][k] + str(current_cell_num[0])] = main_h[j][k]
 
-        current_cell_num[0] += 1
-        current_cell_num[1] += 1
-        current_cell_num[2] += 1
-        current_cell_num[3] += 1
-        current_cell_num[4] += 1
+        # Child hospital summary
+        child_h = [shift_cell_record_val_S, shift_cell_record_val_h_S, shift_cell_record_main_c]
+        # Loop through all shifts
+        for h in range(len(main_h)):
+            for j in range(len(field_summary)):
+                for k in range(len(field_summary[j])):
+                    sheet[field_summary[j][k] + str(current_cell_num[1])] = child_h[j][k]
 
         print(map_name_person(n), " morning_shifts: ", solver.Value(morning_shifts[n]),
               " afternoon_shifts: ",
@@ -953,10 +1046,16 @@ def main():
 
         print('---')
 
+        current_cell_num[0] += 1
+        current_cell_num[1] += 1
+        summary_cell_num += 1
+
     print(sum_all_shifts)
     # Save the workbook
-    wb.save("sample.xlsx")
+    wb.save("sample" + str(m) + ".xlsx")
 
 
 if __name__ == '__main__':
-    main()
+    all_month = [1]
+    for m in all_month:
+        main(m)

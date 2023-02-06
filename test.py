@@ -28,7 +28,9 @@
 #
 # # Save the workbook
 # wb.save("sample.xlsx")
-num_of_nurse_per_shift = 3
-all_nurse_per_shift = range(num_of_nurse_per_shift)
-for k in all_nurse_per_shift:
-    print(k)
+current_cell_num = [3, 22]
+for n in range(10):
+    for c in range(len(current_cell_num)):
+        print(c)
+    current_cell_num[0] += 1
+    current_cell_num[1] += 1
