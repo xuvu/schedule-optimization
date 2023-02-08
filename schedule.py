@@ -164,24 +164,17 @@ def main(m, decrement_):
     year_ = 2023
     month_ = m
 
-    total_min_working = 0
-    total_max_working = 0
-    total_min_working_h = 0
-    total_max_working_h = 0
-    total_min_working_S = 0
-    total_max_working_S = 0
-    total_min_working_h_S = 0
-    total_max_working_h_S = 0
     total_min_working_all = 0
     total_max_working_all = 0
     total_min_holiday_all = 0
     total_max_holiday_all = 0
     total_min_summary = 0
     total_max_summary = 0
-    total_max_main_hospital = 0
-    total_min_main_hospital = 0
-    total_max_child_hospital = 0
-    total_min_child_hospital = 0
+    total_max_main_hospital_working = 0
+    total_min_main_hospital_working = 0
+
+    total_max_main_hospital_holiday = 0
+    total_min_main_hospital_holiday = 0
 
     num_nurses = len(roles)
     all_nurses = range(num_nurses)
@@ -212,9 +205,7 @@ def main(m, decrement_):
     all_nurse_per_shift = range(num_of_nurse_per_shift)
 
     # Amount of all shifts
-    all_shift_count = (((total_holidays * (num_shifts - 0)) + (
-            total_working_days * (num_shifts - len(forbidden_shifts)))) * num_of_nurse_per_shift) - decrement_[
-                          'diff_type']
+    all_shift_count = (((total_holidays * (num_shifts - 0)) + (total_working_days * (num_shifts - len(forbidden_shifts)))) * num_of_nurse_per_shift)
 
     max_consucutive_shift = all_shift_count - decrement_['con_shift']
 
@@ -628,52 +619,34 @@ def main(m, decrement_):
         model.Add(min_night_shift_per_nurse_h_S - slack_h <= num_shifts_night_h_S)
         model.Add(num_shifts_night_h_S <= max_night_shift_per_nurse_h_S + slack_h)
 
-        # total min-max distribution all shift (Summary) <--- here
+        # total min-max distribution sum of all shift (holiday summary)
+        total_max_holiday_all = total_holidays * (num_of_nurse_per_shift * num_shifts)
+        total_max_holiday_all = math.ceil(total_max_holiday_all / num_nurses)
+        total_min_holiday_all = total_max_holiday_all - 1
+
+        # Distribute sum of all shift (holiday summary)
+        model.Add(total_min_holiday_all <= num_shift_worked_h + num_shift_worked_h_S)
+        model.Add(num_shift_worked_h + num_shift_worked_h_S <= total_max_holiday_all)
+
+        # total min-max distribution sum of all shift (working summary)
+        total_max_working_all = total_working_days * (num_of_nurse_per_shift * (num_shifts - len(forbidden_shifts)))
+        total_max_working_all = math.ceil(total_max_working_all / num_nurses)
+        total_min_working_all = total_max_working_all - 1
+
+        # Distribute sum of all shift (working summary)
+        model.Add(total_min_working_all <= num_shift_worked + num_shift_worked_S)
+        model.Add(num_shift_worked + num_shift_worked_S <= total_max_working_all)
+
+        # total min-max distribution sum of all shift (Summary)
         total_max_summary = math.ceil(all_shift_count / num_nurses)
         total_min_summary = total_max_summary - 1
 
-        # Distribute all shift (Summary)
+        # Distribute sum of all shift (Summary)
         model.Add(
             total_min_summary <= num_shift_worked_S + num_shift_worked + num_shift_worked_h_S + num_shift_worked_h)
         model.Add(
             num_shift_worked_S + num_shift_worked + num_shift_worked_h_S + num_shift_worked_h <= total_max_summary)
         # ---------------------------------------------------------------
-
-    # max_diff_pair = get_max_diff_type(roles, all_shift_count)
-    max_diff_count = 0
-
-    # # Each shift ensure different type of nurses
-    # for d in all_weekends:
-    #     for s in all_shifts:
-    #         if max_diff_count <= all_shift_count:
-    #             max_diff_count += 2
-    #             type_count = [0] * len(all_types)
-    #             for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
-    #                 for t in all_types:
-    #                     for n in all_nurses:
-    #                         if type_of_nurse(n) == t:
-    #                             type_count[t] += shifts[(n, d, s, k)]
-    #             for t in all_types:
-    #                 model.Add(type_count[t] <= 1)
-    #
-    # for d in all_working_days:
-    #     for s in all_shifts:
-    #         if s != 0:  # exclude morning and special hospital
-    #             if max_diff_count <= all_shift_count:
-    #                 max_diff_count += 2
-    #                 type_count = [0] * len(all_types)
-    #                 for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
-    #                     for t in all_types:
-    #                         for n in all_nurses:
-    #                             if type_of_nurse(n) == t:
-    #                                 type_count[t] += shifts[(n, d, s, k)]
-    #                 for t in all_types:
-    #                     model.Add(type_count[t] <= 1)
-
-    # pylint: disable=g-complex-comprehension
-    model.Maximize(
-        sum(shift_requests[n][d - 1][s][k] * shifts[(n, d, s, k)] for n in all_nurses
-            for d in all_days for s in all_shifts for k in all_nurse_per_shift))
 
     print('morning range (working day)', min_morning_shift_per_nurse, '<=', max_morning_shift_per_nurse)
     print('afternoon range (working day)', min_afternoon_shift_per_nurse, '<=', max_afternoon_shift_per_nurse)
@@ -691,19 +664,48 @@ def main(m, decrement_):
     print('afternoon range (holiday)(S)', min_afternoon_shift_per_nurse_h_S, '<=', max_afternoon_shift_per_nurse_h_S)
     print('night range (holiday)(S)', min_night_shift_per_nurse_h_S, '<=', max_night_shift_per_nurse_h_S)
     print('---')
-    print('Total range main', total_min_main_hospital, '<=', total_max_main_hospital)
-    print('Total range child', total_min_child_hospital, '<=', total_max_child_hospital)
-    print('---')
-    print('Total range (working day)', total_min_working, '<=', total_max_working)
-    print('Total range (holiday)', total_min_working_h, '<=', total_max_working_h)
-    print('Total range (working day) (S)', total_min_working_S, '<=', total_max_working_S)
-    print('Total range (holiday) (S)', total_min_working_h_S, '<=', total_max_working_h_S)
+    print('Total range main (working day)', total_min_main_hospital_working, '<=', total_max_main_hospital_working)
+    print('Total range main (holiday)', total_min_main_hospital_holiday, '<=', total_max_main_hospital_holiday)
     print('---')
     print('Total summary range (working day)', total_min_working_all, '<=', total_max_working_all)
     print('Total summary range (holiday)', total_min_holiday_all, '<=', total_max_holiday_all)
     print('Total summary range', total_min_summary, '<=', total_max_summary)
-    # print('sum min total shift', total_min)
-    # print('sum max total shift', total_max)
+
+    max_diff = all_shift_count - decrement_['diff_type']
+    max_diff_count = 0
+
+    # Each shift ensure different type of nurses
+    for d in all_weekends:
+        for s in all_shifts:
+            if max_diff_count <= max_diff:
+                max_diff_count += 2
+                type_count = [0] * len(all_types)
+                for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
+                    for t in all_types:
+                        for n in all_nurses:
+                            if type_of_nurse(n) == t:
+                                type_count[t] += shifts[(n, d, s, k)]
+                for t in all_types:
+                    model.Add(type_count[t] <= 1)
+
+    for d in all_working_days:
+        for s in all_shifts:
+            if s != 0:  # exclude morning and special hospital
+                if max_diff_count <= max_diff:
+                    max_diff_count += 2
+                    type_count = [0] * len(all_types)
+                    for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
+                        for t in all_types:
+                            for n in all_nurses:
+                                if type_of_nurse(n) == t:
+                                    type_count[t] += shifts[(n, d, s, k)]
+                    for t in all_types:
+                        model.Add(type_count[t] <= 1)
+
+    # pylint: disable=g-complex-comprehension
+    model.Maximize(
+        sum(shift_requests[n][d - 1][s][k] * shifts[(n, d, s, k)] for n in all_nurses
+            for d in all_days for s in all_shifts for k in all_nurse_per_shift))
 
     # Creates the solver and solve.
     solver = cp_model.CpSolver()
@@ -1043,4 +1045,11 @@ if __name__ == '__main__':
     decrement = {'diff_type': 0, 'con_shift': 0}
 
     for m in all_month:
-        main(m, decrement)
+        while True:
+            if not stop_flag:
+                main(m, decrement)
+                decrement['diff_type'] += 5
+            else:
+                decrement['diff_type'] = 0
+                stop_flag = False
+                break
