@@ -307,26 +307,26 @@ def main(m, decrement_):
             # shifts[(0, 1 + 2, 0, k), shifts[(0, 1 + 1, 1, k), shifts[(0, 1 + 2, 2, k) <= 2
             # all of the shifts period the nurse can only have 2 shifts maximum
 
-    for d in all_days:
-        for n in all_nurses:
-            if max_consecutive_shift_count < max_consecutive_shift:
-                for k in all_nurse_per_shift:
-                    model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2)
-
-                # Forbidden shifts pattern [(d,0),(d+1,0)]
-                if d < len(all_days) - 1:
-                    model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(
-                        shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
-            else:
-                # Forbidden shifts pattern [0,2]
-                model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(
-                    shifts[(n, d, 2, k)] for k in all_nurse_per_shift) <= 1)
-
-                # Forbidden shifts pattern [(d,2),(d + 1,0)]
-                if d < len(all_days) - 1:
-                    model.Add(sum(shifts[(n, d, 2, k)] for k in all_nurse_per_shift) + sum(
-                        shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
-        max_consecutive_shift_count += 6
+    # for d in all_days:
+    #     for n in all_nurses:
+    #         if max_consecutive_shift_count < max_consecutive_shift:
+    #             for k in all_nurse_per_shift:
+    #                 model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2)
+    #
+    #             # Forbidden shifts pattern [(d,0),(d+1,0)]
+    #             if d < len(all_days) - 1:
+    #                 model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(
+    #                     shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
+    #         else:
+    #             # Forbidden shifts pattern [0,2]
+    #             model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(
+    #                 shifts[(n, d, 2, k)] for k in all_nurse_per_shift) <= 1)
+    #
+    #             # Forbidden shifts pattern [(d,2),(d + 1,0)]
+    #             if d < len(all_days) - 1:
+    #                 model.Add(sum(shifts[(n, d, 2, k)] for k in all_nurse_per_shift) + sum(
+    #                     shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
+    #     max_consecutive_shift_count += 6
 
     # # Forbidden shifts pattern [0,2] d,[(1,2,3)] d+1,[(1,2,3)]
     # for n in all_nurses:
@@ -703,6 +703,7 @@ def main(m, decrement_):
     #                     for t in all_types:
     #                         model.Add(type_count[t] <= 1)
     #                         max_diff_count += 1
+
 
     print('morning range (working day)', min_morning_shift_per_nurse, '<=', max_morning_shift_per_nurse)
     print('afternoon range (working day)', min_afternoon_shift_per_nurse, '<=', max_afternoon_shift_per_nurse)
