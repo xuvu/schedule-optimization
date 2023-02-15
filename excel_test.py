@@ -1,9 +1,27 @@
-num_shifts = 3
-all_day = range(1, 32)
+import openpyxl
+from openpyxl.styles import PatternFill
 
-for d in all_day:
-    current_shift = range((num_shifts * (d - 1)) + 1, (num_shifts * d)+1)
-    print(current_shift[0])
-    print(current_shift[1])
-    print(current_shift[2])
-    # 1 2 3
+# Create a new Excel workbook
+wb = openpyxl.Workbook()
+
+# Select the active sheet
+sheet = wb.active
+
+# Write the formula to the cell
+start = 'A1'
+end = 'E1'
+word = 'Apple'
+
+sheet['A1'] = 'Apple'
+sheet['B1'] = 'Apple'
+sheet['C1'] = 'Apple'
+sheet['D1'] = 'Apple'
+sheet['E1'] = 'Apple'
+
+
+test_text = '=COUNTIF(' + start + ':' + end + ',' + '"' + word + '")'
+test_text_ = 'COUNTIF(' + start + ':' + end + ',' + '"' + word + '")'
+sheet['B2'] = test_text
+
+# Save the changes to the workbook
+wb.save('example.xlsx')

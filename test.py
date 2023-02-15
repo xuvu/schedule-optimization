@@ -1,17 +1,13 @@
-import openpyxl
-from openpyxl.styles import PatternFill
+# a = 'TX'
+# b = 'KY'
+# c = 'XJ'
+#
+# text = '=COUNTIF(A2:A5,A4)'
+# test_text = '=COUNTIF(' + a + ':' + b + ',' + '"' + c + '")'
+# test_text_ = '+ COUNTIF(' + a + ':' + b + ',' + '"' + c + '")'
+# print(test_text, test_text_)
 
-# Create a new Excel workbook
-wb = openpyxl.Workbook()
 
-# Select the active sheet
-sheet = wb.active
-
-blueFill = PatternFill(start_color='ADD8E6',
-                           end_color='ADD8E6',
-                           fill_type='solid')
-
-sheet['A10'].fill = blueFill
-sheet['A10'] = 10
-
-wb.save("colorFill.xlsx")
+count_cell_main_hospital = {'morning': [1,2,3], 'afternoon': [], 'night': []}
+count_cell_main_hospital_name = ['morning', 'afternoon', 'night']
+print(count_cell_main_hospital[count_cell_main_hospital_name[0]])

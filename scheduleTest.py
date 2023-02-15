@@ -1159,3 +1159,4 @@ if __name__ == '__main__':
                     decrement['diff_type'] = 0
                     decrement['con_shift'] = -6
                     break
+
