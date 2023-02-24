@@ -1,14 +1,11 @@
 """Nurse scheduling problem with shift requests."""
 import math
 import random
-
 from ortools.sat.python import cp_model
 import calendar
 import numpy as np
 from pandas import date_range
 import itertools
-
-stop_flag = [False, False]
 
 name_of_person = ['ภูวเนตร',
                   'ราเชนทร์',
@@ -195,7 +192,7 @@ def name_of_type_nurse(n):
     return roles[n]
 
 
-def main(m, decrement_, increment_, current_state):
+def main(m):
     # This program tries to find an optimal assignment of nurses to shifts
     # (3 shifts per day, for 7 days), subject to some constraints (see below).
     # Each nurse can request to be assigned to specific shifts.
@@ -221,7 +218,7 @@ def main(m, decrement_, increment_, current_state):
 
     # example Add additional holiday 3,4,5
     # all_weekends = weekend_days_in_month(year_, month_, [3,4,5])
-    all_weekends = weekend_days_in_month(year_, month_, [2,3])
+    all_weekends = weekend_days_in_month(year_, month_, [2, 3])
     all_working_days = set(all_days) - set(all_weekends)
 
     total_working_days = len(all_working_days)
@@ -236,8 +233,8 @@ def main(m, decrement_, increment_, current_state):
     # Creates shift variables.
     # Shifts[(n, d, s)]: nurse 'n' works shift 's' on day 'd'.
     shifts = {}
-    num_shifts = 3
-    all_shifts = range(num_shifts)  # [1,2,3,4]
+    num_shifts = 3  # เช้า,บ่าย,ดึก
+    all_shifts = range(num_shifts)  # [1,2,3]
 
     forbidden_shifts = [0]
 
@@ -246,16 +243,10 @@ def main(m, decrement_, increment_, current_state):
     all_nurse_per_shift = range(num_of_nurse_per_shift)
 
     # Amount of all shifts
-    all_shift_count = (((total_holidays * (num_shifts - 0)) + (
-            total_working_days * (num_shifts - len(forbidden_shifts)))) * num_of_nurse_per_shift)
-
-    max_consecutive_shift = all_shift_count - decrement_['con_shift']
-    # max_consecutive_shift = 100
-
-    # reduce amount of all shift for satisfying the constraint
-    # all_shift_count = all_shift_count - decrement_['diff_type']
+    all_shift_count = (((total_holidays * (num_shifts - 0)) + (total_working_days * (num_shifts - len(forbidden_shifts)))) * num_of_nurse_per_shift)
 
     # this variable should be generated automatically then can be modified later on
+    # Deprecate
     shift_requests = create_list(num_nurses, len(all_days), num_shifts, num_of_nurse_per_shift)  # <-- demo
 
     for n in all_nurses:
@@ -318,7 +309,8 @@ def main(m, decrement_, increment_, current_state):
         for n in all_nurses:
             # For each nurse shouldn't have more than 2 shifts within 1+1 days
             if (d + day_interval) < len(all_days):  # 1 + (4-1) < 31
-                model.Add(sum(shifts[(n, d + i, s, k)] for i in range(day_interval + 1) for s in all_shifts for k in all_nurse_per_shift) <= maximum_shifts)
+                model.Add(sum(shifts[(n, d + i, s, k)] for i in range(day_interval + 1) for s in all_shifts for k in
+                              all_nurse_per_shift) <= maximum_shifts)
             # shifts[(0, 1 + 0, 0, k), shifts[(0, 1 + 0, 1, k), shifts[(0, 1 + 0, 2, k)
             # shifts[(0, 1 + 1, 0, k), shifts[(0, 1 + 1, 1, k), shifts[(0, 1 + 1, 2, k)
             # shifts[(0, 1 + 2, 0, k), shifts[(0, 1 + 1, 1, k), shifts[(0, 1 + 2, 2, k) <= 2
@@ -327,22 +319,9 @@ def main(m, decrement_, increment_, current_state):
     # Prioritize shift patterns (1,2) same
     for d in all_days:
         for n in all_nurses:
-            if max_consecutive_shift_count < max_consecutive_shift:
-                for k in all_nurse_per_shift:
-                    # Desire shift pattern (1,2)
-                    model.Add(shifts[(n, d, 1, k)] * 0 <= shifts[(n, d, 2, k)] * 0)  # (1,2)
-
-                # Forbidden shifts pattern [(d,0),(d+1,0)]
-                if d < len(all_days) - 1:
-                    model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
-            else:
-                # Forbidden shifts pattern [0,2]
-                model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(shifts[(n, d, 2, k)] for k in all_nurse_per_shift) <= 1)
-
-                # Forbidden shifts pattern [(d,2),(d + 1,0)]
-                if d < len(all_days) - 1:
-                    model.Add(sum(shifts[(n, d, 2, k)] for k in all_nurse_per_shift) + sum(shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
-        max_consecutive_shift_count += 6
+            for k in all_nurse_per_shift:
+                # Desire shift pattern (1,2)
+                model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2)
 
     # Forbidden shifts pattern [0,2] d,[(1,2,3)] d+1,[(1,2,3)]
     for n in all_nurses:
@@ -353,44 +332,39 @@ def main(m, decrement_, increment_, current_state):
                 model.Add(sum(shifts[(n, d, 0, k)] for k in all_nurse_per_shift) + sum(
                     shifts[(n, d + 1, 0, k)] for k in all_nurse_per_shift) <= 1)
 
-    # Each shift ensure different type of nurses
-    max_diff = all_shift_count - decrement_['diff_type']
-    max_diff_count = 0
-    if stop_flag[0]:
-        # Each shift ensure different type of nurses
-        for d in all_weekends:
-            for s in all_shifts:
-                if max_diff_count <= max_diff:
-                    type_count = [0] * len(all_types)
-                    for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
-                        for t in all_types:
-                            for n in all_nurses:
-                                if type_of_nurse(n) == t:
-                                    type_count[t] += shifts[(n, d, s, k)]
-                    for t in all_types:
-                        model.Add(type_count[t] <= 1)
-                        max_diff_count += 1
-
-        for d in all_working_days:
-            for s in all_shifts:
-                if s != 0:  # exclude morning and special hospital
-                    if max_diff_count <= max_diff:
-                        type_count = [0] * len(all_types)
-                        for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
-                            for t in all_types:
-                                for n in all_nurses:
-                                    if type_of_nurse(n) == t:
-                                        type_count[t] += shifts[(n, d, s, k)]
-                        for t in all_types:
-                            model.Add(type_count[t] <= 1)
-                            max_diff_count += 1
+    # # Each shift ensure different type of nurses
+    # for d in all_weekends:
+    #     for s in all_shifts:
+    #         type_count = [0] * len(all_types)
+    #         for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
+    #             for t in all_types:
+    #                 for n in all_nurses:
+    #                     if type_of_nurse(n) == t:
+    #                         type_count[t] += shifts[(n, d, s, k)]
+    #         for t in all_types:
+    #             model.Add(type_count[t] <= 1)
+    #
+    #
+    # for d in all_working_days:
+    #     for s in all_shifts:
+    #         if s != 0:  # exclude morning and special hospital
+    #             type_count = [0] * len(all_types)
+    #             for k in range(0, num_of_nurse_per_shift - 1):  # -1 for excluding the third person
+    #                 for t in all_types:
+    #                     for n in all_nurses:
+    #                         if type_of_nurse(n) == t:
+    #                             type_count[t] += shifts[(n, d, s, k)]
+    #             for t in all_types:
+    #                 model.Add(type_count[t] <= 1)
 
     # All working shifts min-max variable
     # ---------------------------------------------------------------
+    # Main hospital
     min_morning_shift_per_nurse = (total_working_days * (num_of_nurse_per_shift - 1)) // num_nurses
     min_afternoon_shift_per_nurse = (total_working_days * (num_of_nurse_per_shift - 1)) // num_nurses
     min_night_shift_per_nurse = (total_working_days * (num_of_nurse_per_shift - 1)) // num_nurses
 
+    # Child hospital
     min_morning_shift_per_nurse_S = (total_working_days * (num_of_nurse_per_shift - 2)) // num_nurses
     min_afternoon_shift_per_nurse_S = (total_working_days * (num_of_nurse_per_shift - 2)) // num_nurses
     min_night_shift_per_nurse_S = (total_working_days * (num_of_nurse_per_shift - 2)) // num_nurses
@@ -488,8 +462,9 @@ def main(m, decrement_, increment_, current_state):
 
     # Distribute all day for main hospital
     for n in all_nurses:
-        num_shift_worked = 0
-        num_shift_worked_h = 0
+
+        num_shift_worked = 0 # all working day
+        num_shift_worked_h = 0 # all holiday
 
         num_shifts_morning = 0
         num_shifts_morning_h = 0
@@ -640,8 +615,7 @@ def main(m, decrement_, increment_, current_state):
         # num_of_nurse_per_shift - 1 remove k2
         max_slack = 0
         min_slack = -1
-        total_max_main_hospital = (((total_holidays * (num_shifts - 0)) + (
-                total_working_days * (num_shifts - len(forbidden_shifts)))) * (num_of_nurse_per_shift - 1))
+        total_max_main_hospital = (((total_holidays * (num_shifts - 0)) + (total_working_days * (num_shifts - len(forbidden_shifts)))) * (num_of_nurse_per_shift - 1))
         total_max_main_hospital = math.ceil(total_max_main_hospital / num_nurses) + max_slack
         total_min_main_hospital = total_max_main_hospital - 1 - max_slack + min_slack
 
@@ -676,7 +650,7 @@ def main(m, decrement_, increment_, current_state):
         # total min-max distribution sum of all shift (morning_holiday summary)
         max_slack = 0
         min_slack = 0
-        total_max_morning_holiday_all = total_holidays * (num_shifts-2) * num_of_nurse_per_shift
+        total_max_morning_holiday_all = total_holidays * (num_shifts - 2) * num_of_nurse_per_shift
         total_max_morning_holiday_all = math.ceil(total_max_morning_holiday_all / num_nurses) + max_slack
         total_min_morning_holiday_all = total_max_morning_holiday_all - 1 - max_slack + min_slack
 
@@ -731,8 +705,6 @@ def main(m, decrement_, increment_, current_state):
     print('Total summary range (holiday)', total_min_holiday_all, '<=', total_max_holiday_all)
     print('Total summary range', total_min_summary, '<=', total_max_summary)
 
-    print('max-con-shifts', max_consecutive_shift)
-    print('max-diff-shifts', max_diff)
     print('current month', m)
 
     # pylint: disable=g-complex-comprehension
@@ -769,10 +741,6 @@ def main(m, decrement_, increment_, current_state):
     # red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
 
     if status == cp_model.OPTIMAL:
-        if stop_flag[0]:
-            stop_flag[1] = True
-        else:
-            stop_flag[0] = True
 
         # sheet['B1'] = 'Morning (08.00 - 16.00)'
         # sheet['C1'] = 'Afternoon (16.00-24.00)'
@@ -1053,7 +1021,6 @@ def main(m, decrement_, increment_, current_state):
             for j in range(len(field_name)):
                 shift_cell_text_pos = 0
                 for k in range(len(field_name[j])):
-
                     # Non-Editable section in Excel
                     sheet[field_name[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
                     sheet[field_name[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
@@ -1061,17 +1028,22 @@ def main(m, decrement_, increment_, current_state):
                     sheet[field_name[j][k] + str(c - 1)] = shift_cell_text[shift_cell_text_pos]
 
                     # Editable section in Excel
-                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[shift_cell_text_pos]
-                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[shift_cell_text_pos]
-                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[shift_cell_text_pos]
-                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[shift_cell_text_pos]
+                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[
+                        shift_cell_text_pos]
+                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[
+                        shift_cell_text_pos]
+                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[
+                        shift_cell_text_pos]
+                    sheet[field_name[j][k] + str(c - 1 + fixable_section_cell_num)] = shift_cell_text[
+                        shift_cell_text_pos]
 
                     shift_cell_text_pos += 1
 
             shift_cell_text_pos = 0
             for k in range(len(field_name[0])):
                 sheet[field_name[0][k] + str(summary_cell_num)] = shift_cell_text_final_summary[shift_cell_text_pos]
-                sheet[field_name[0][k] + str(summary_cell_num + fixable_section_cell_num)] = shift_cell_text_final_summary[shift_cell_text_pos]
+                sheet[field_name[0][k] + str(summary_cell_num + fixable_section_cell_num)] = \
+                    shift_cell_text_final_summary[shift_cell_text_pos]
                 shift_cell_text_pos += 1
 
         name_field = ['L', 'R', 'X']
@@ -1127,7 +1099,8 @@ def main(m, decrement_, increment_, current_state):
                 afternoon_shifts_h_S[n]) + solver.Value(night_shifts_h_S[n])
 
             # sum of all shifts for child hospital in working day
-            sum_all_working_day_S = solver.Value(morning_shifts_S[n]) + solver.Value(afternoon_shifts_S[n]) + solver.Value(night_shifts_S[n])
+            sum_all_working_day_S = solver.Value(morning_shifts_S[n]) + solver.Value(
+                afternoon_shifts_S[n]) + solver.Value(night_shifts_S[n])
 
             # Each shift value in record of main hospital in working day
             shift_cell_record_val = [solver.Value(morning_shifts[n]), solver.Value(afternoon_shifts[n]),
@@ -1157,7 +1130,8 @@ def main(m, decrement_, increment_, current_state):
                                          solver.Value(night_shifts_S[n]) + solver.Value(night_shifts_h_S[n]),
                                          sum_all_working_day_S + sum_all_holiday_S]
             # Final summary
-            shift_cell_record_summary = [solver.Value(morning_shifts_h_S[n]) + solver.Value(morning_shifts_h[n]), sum_all_holiday + sum_all_holiday_S,
+            shift_cell_record_summary = [solver.Value(morning_shifts_h_S[n]) + solver.Value(morning_shifts_h[n]),
+                                         sum_all_holiday + sum_all_holiday_S,
                                          sum_all_working_day + sum_all_working_day_S,
                                          sum_all_holiday + sum_all_working_day + sum_all_holiday_S + sum_all_working_day_S]
 
@@ -1175,11 +1149,15 @@ def main(m, decrement_, increment_, current_state):
                             else:
                                 temp += [count_person_cell[0][s][k][j]]  # for child hospital
                         if k != 0:
-                            count_cell_working_main[count_cell_name[s]] += '+COUNTIF(' + start_end[0] + ':' + start_end[1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
-                            count_cell_working_child[count_cell_name[s]] += '+COUNTIF(' + temp[0] + ',' + '"' + map_name_person(n) + '")'
+                            count_cell_working_main[count_cell_name[s]] += '+COUNTIF(' + start_end[0] + ':' + start_end[
+                                1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
+                            count_cell_working_child[count_cell_name[s]] += '+COUNTIF(' + temp[
+                                0] + ',' + '"' + map_name_person(n) + '")'
                         else:
-                            count_cell_working_main[count_cell_name[s]] += '=COUNTIF(' + start_end[0] + ':' + start_end[1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
-                            count_cell_working_child[count_cell_name[s]] += '=COUNTIF(' + temp[0] + ',' + '"' + map_name_person(n) + '")'
+                            count_cell_working_main[count_cell_name[s]] += '=COUNTIF(' + start_end[0] + ':' + start_end[
+                                1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
+                            count_cell_working_child[count_cell_name[s]] += '=COUNTIF(' + temp[
+                                0] + ',' + '"' + map_name_person(n) + '")'
 
             count_cell_holiday_main = {'morning': '', 'afternoon': '', 'night': ''}
             count_cell_holiday_child = {'morning': '', 'afternoon': '', 'night': ''}
@@ -1194,11 +1172,15 @@ def main(m, decrement_, increment_, current_state):
                             else:
                                 temp += [count_person_cell[1][s][k][j]]  # for child hospital
                         if k != 0:
-                            count_cell_holiday_main[count_cell_name[s]] += '+COUNTIF(' + start_end[0] + ':' + start_end[1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
-                            count_cell_holiday_child[count_cell_name[s]] += '+COUNTIF(' + temp[0] + ',' + '"' + map_name_person(n) + '")'
+                            count_cell_holiday_main[count_cell_name[s]] += '+COUNTIF(' + start_end[0] + ':' + start_end[
+                                1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
+                            count_cell_holiday_child[count_cell_name[s]] += '+COUNTIF(' + temp[
+                                0] + ',' + '"' + map_name_person(n) + '")'
                         else:
-                            count_cell_holiday_main[count_cell_name[s]] += '=COUNTIF(' + start_end[0] + ':' + start_end[1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
-                            count_cell_holiday_child[count_cell_name[s]] += '=COUNTIF(' + temp[0] + ',' + '"' + map_name_person(n) + '")'
+                            count_cell_holiday_main[count_cell_name[s]] += '=COUNTIF(' + start_end[0] + ':' + start_end[
+                                1] + ',' + '"' + map_name_person(n) + '")'  # add start and end cell for counting
+                            count_cell_holiday_child[count_cell_name[s]] += '=COUNTIF(' + temp[
+                                0] + ',' + '"' + map_name_person(n) + '")'
 
             # Main hospital summary
             main_h = [shift_cell_record_val, shift_cell_record_val_h, sum_main_hospital_shifts]
@@ -1223,10 +1205,12 @@ def main(m, decrement_, increment_, current_state):
                     sum_cell = []
                     for k in range(len(field_name[j]) - 1):
                         sheet[field_name[j][k] + str(current_cell_num[0] + fixable_section_cell_num)] = main_count[j][k]
-                        sheet[field_name[j][k] + str(current_cell_num[0] + fixable_section_cell_num)].fill = current_color
+                        sheet[
+                            field_name[j][k] + str(current_cell_num[0] + fixable_section_cell_num)].fill = current_color
                         sum_cell += [field_name[j][k] + str(current_cell_num[0] + fixable_section_cell_num)]
 
-                    sheet[field_name[j][3] + str(current_cell_num[0] + fixable_section_cell_num)] = '=SUM(' + sum_cell[0] + ':' + sum_cell[len(sum_cell) - 1] + ')'
+                    sheet[field_name[j][3] + str(current_cell_num[0] + fixable_section_cell_num)] = '=SUM(' + sum_cell[
+                        0] + ':' + sum_cell[len(sum_cell) - 1] + ')'
                     sheet[field_name[j][3] + str(current_cell_num[0] + fixable_section_cell_num)].fill = current_color
 
             # Child hospital summary
@@ -1250,10 +1234,13 @@ def main(m, decrement_, increment_, current_state):
                 for j in range(len(field_name) - 1):
                     sum_cell = []
                     for k in range(len(field_name[j]) - 1):
-                        sheet[field_name[j][k] + str(current_cell_num[1] + fixable_section_cell_num)] = child_count[j][k]
-                        sheet[field_name[j][k] + str(current_cell_num[1] + fixable_section_cell_num)].fill = current_color
+                        sheet[field_name[j][k] + str(current_cell_num[1] + fixable_section_cell_num)] = child_count[j][
+                            k]
+                        sheet[
+                            field_name[j][k] + str(current_cell_num[1] + fixable_section_cell_num)].fill = current_color
                         sum_cell += [field_name[j][k] + str(current_cell_num[1] + fixable_section_cell_num)]
-                    sheet[field_name[j][3] + str(current_cell_num[1] + fixable_section_cell_num)] = '=SUM(' + sum_cell[0] + ':' + sum_cell[len(sum_cell) - 1] + ')'
+                    sheet[field_name[j][3] + str(current_cell_num[1] + fixable_section_cell_num)] = '=SUM(' + sum_cell[
+                        0] + ':' + sum_cell[len(sum_cell) - 1] + ')'
                     sheet[field_name[j][3] + str(current_cell_num[1] + fixable_section_cell_num)].fill = current_color
 
             # Final Summary
@@ -1262,23 +1249,32 @@ def main(m, decrement_, increment_, current_state):
                 sheet[str(field_name[0][column_]) + str(summary_cell_num + 1)] = shift_cell_record_summary[column_]
 
             # Final Summary fixable for working day
-            sum_working_day_cell = field_name[0][len(field_name[0]) - 2] + str(summary_cell_num + 1 + fixable_section_cell_num)
-            working_day_main = str(field_name[0][len(field_name[0]) - 1]) + str(current_cell_num[0] + fixable_section_cell_num)
-            working_day_child = str(field_name[0][len(field_name[0]) - 1]) + str(current_cell_num[1] + fixable_section_cell_num)
+            sum_working_day_cell = field_name[0][len(field_name[0]) - 2] + str(
+                summary_cell_num + 1 + fixable_section_cell_num)
+            working_day_main = str(field_name[0][len(field_name[0]) - 1]) + str(
+                current_cell_num[0] + fixable_section_cell_num)
+            working_day_child = str(field_name[0][len(field_name[0]) - 1]) + str(
+                current_cell_num[1] + fixable_section_cell_num)
             sheet[sum_working_day_cell] = '=SUM(' + working_day_main + ',' + working_day_child + ')'
             sheet[sum_working_day_cell].fill = current_color
 
             # Final Summary fixable for holiday
-            sum_holiday_cell = field_name[0][len(field_name[0]) - 3] + str(summary_cell_num + 1 + fixable_section_cell_num)
-            holiday_main = str(field_name[1][len(field_name[0]) - 1]) + str(current_cell_num[0] + fixable_section_cell_num)
-            holiday_child = str(field_name[1][len(field_name[0]) - 1]) + str(current_cell_num[1] + fixable_section_cell_num)
+            sum_holiday_cell = field_name[0][len(field_name[0]) - 3] + str(
+                summary_cell_num + 1 + fixable_section_cell_num)
+            holiday_main = str(field_name[1][len(field_name[0]) - 1]) + str(
+                current_cell_num[0] + fixable_section_cell_num)
+            holiday_child = str(field_name[1][len(field_name[0]) - 1]) + str(
+                current_cell_num[1] + fixable_section_cell_num)
             sheet[sum_holiday_cell] = '=SUM(' + holiday_main + ',' + holiday_child + ')'
             sheet[sum_holiday_cell].fill = current_color
 
             # Final Summary  fixable for morning holiday
-            sum_morning_holiday_cell = field_name[0][len(field_name[0]) - 4] + str(summary_cell_num + 1 + fixable_section_cell_num)
-            morning_holiday_main = str(field_name[1][len(field_name[0]) - 4]) + str(current_cell_num[0] + fixable_section_cell_num)
-            morning_holiday_child = str(field_name[1][len(field_name[0]) - 4]) + str(current_cell_num[1] + fixable_section_cell_num)
+            sum_morning_holiday_cell = field_name[0][len(field_name[0]) - 4] + str(
+                summary_cell_num + 1 + fixable_section_cell_num)
+            morning_holiday_main = str(field_name[1][len(field_name[0]) - 4]) + str(
+                current_cell_num[0] + fixable_section_cell_num)
+            morning_holiday_child = str(field_name[1][len(field_name[0]) - 4]) + str(
+                current_cell_num[1] + fixable_section_cell_num)
             sheet[sum_morning_holiday_cell] = '=SUM(' + morning_holiday_main + ',' + morning_holiday_child + ')'
             sheet[sum_morning_holiday_cell].fill = current_color
 
@@ -1311,15 +1307,15 @@ def main(m, decrement_, increment_, current_state):
 
         print(sum_all_shifts)
         # Save the workbook
-        if stop_flag[1]:
-            # Add borders to cells containing text or numbers
-            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-            for row in sheet.iter_rows(min_row=1, min_col=1, max_row=sheet.max_row, max_col=sheet.max_column):
-                for cell in row:
-                    if cell.value is not None:
-                        cell.border = thin_border
+        # Add borders to cells containing text or numbers
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+                             bottom=Side(style='thin'))
+        for row in sheet.iter_rows(min_row=1, min_col=1, max_row=sheet.max_row, max_col=sheet.max_column):
+            for cell in row:
+                if cell.value is not None:
+                    cell.border = thin_border
 
-            wb.save("sample" + str(m) + ".xlsx")
+        wb.save("sample" + str(m) + ".xlsx")
         return True
     else:
         print('No optimal solution found !')
@@ -1327,21 +1323,4 @@ def main(m, decrement_, increment_, current_state):
 
 
 if __name__ == '__main__':
-    all_month = range(1, 2)
-    decrement = {'diff_type': 0, 'con_shift': -6}
-    increment = {'diff_type': 0, 'con_shift': -6}
-    current_state = None
-    for m in all_month:
-        while True:
-            if not stop_flag[0]:
-                decrement['con_shift'] += 6
-                main(m, decrement, increment, current_state)
-            else:
-                main(m, decrement, increment, current_state)
-                decrement['diff_type'] += 2
-                if stop_flag[1]:
-                    stop_flag[0] = False
-                    stop_flag[1] = False
-                    decrement['diff_type'] = 0
-                    decrement['con_shift'] = -6
-                    break
+    main(1)
