@@ -195,7 +195,7 @@ def name_of_type_nurse(n):
     return roles[n]
 
 
-def main(m, decrement_, increment_, current_state):
+def main(m, decrement_):
     # This program tries to find an optimal assignment of nurses to shifts
     # (3 shifts per day, for 7 days), subject to some constraints (see below).
     # Each nurse can request to be assigned to specific shifts.
@@ -330,7 +330,7 @@ def main(m, decrement_, increment_, current_state):
             if max_consecutive_shift_count < max_consecutive_shift:
                 for k in all_nurse_per_shift:
                     # Desire shift pattern (1,2)
-                    model.Add(shifts[(n, d, 1, k)] * 0 <= shifts[(n, d, 2, k)] * 0)  # (1,2)
+                    model.Add(shifts[(n, d, 1, k)] <= shifts[(n, d, 2, k)])  # (1,2)
 
                 # Forbidden shifts pattern [(d,0),(d+1,0)]
                 if d < len(all_days) - 1:
@@ -1327,17 +1327,15 @@ def main(m, decrement_, increment_, current_state):
 
 
 if __name__ == '__main__':
-    all_month = range(1, 2)
+    all_month = range(3, 4)
     decrement = {'diff_type': 0, 'con_shift': -6}
-    increment = {'diff_type': 0, 'con_shift': -6}
-    current_state = None
     for m in all_month:
         while True:
             if not stop_flag[0]:
                 decrement['con_shift'] += 6
-                main(m, decrement, increment, current_state)
+                main(m, decrement)
             else:
-                main(m, decrement, increment, current_state)
+                main(m, decrement)
                 decrement['diff_type'] += 2
                 if stop_flag[1]:
                     stop_flag[0] = False
